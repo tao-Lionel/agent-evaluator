@@ -1,0 +1,121 @@
+[
+  {
+    "id": "order-cancel-001",
+    "description": "User wants to cancel a pending order.",
+    "difficulty": "easy",
+    "initial_message": "Hi, I want to cancel my order ORD-1001.",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-1001", "user": "Alice", "product": "Bluetooth Headphones", "status": "pending", "amount": 299},
+        {"id": "ORD-1002", "user": "Bob", "product": "USB-C Cable", "status": "shipped", "amount": 39}
+      ]
+    },
+    "max_steps": 10,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-1001"}}, "match_args": {"table": "orders"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-1001"}, "updates": {"status": "cancelled"}}, "match_args": {"table": "orders", "updates": {"status": "cancelled"}}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-1001", "user": "Alice", "product": "Bluetooth Headphones", "status": "cancelled", "amount": 299},
+        {"id": "ORD-1002", "user": "Bob", "product": "USB-C Cable", "status": "shipped", "amount": 39}
+      ]
+    },
+    "required_info": ["ORD-1001", "cancelled"]
+  },
+  {
+    "id": "order-query-002",
+    "description": "User asks about the status of their order.",
+    "difficulty": "easy",
+    "initial_message": "Can you check the status of order ORD-2001 for me?",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-2001", "user": "Charlie", "product": "Mechanical Keyboard", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
+      ]
+    },
+    "max_steps": 10,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-2001"}}, "match_args": {"table": "orders"}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-2001", "user": "Charlie", "product": "Mechanical Keyboard", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
+      ]
+    },
+    "required_info": ["shipped", "SF1234567890"]
+  },
+  {
+    "id": "order-update-003",
+    "description": "User wants to change the shipping address for a pending order.",
+    "difficulty": "medium",
+    "initial_message": "I need to update the shipping address for order ORD-3001 to '123 New Street, Beijing'.",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-3001", "user": "Diana", "product": "Monitor Stand", "status": "pending", "amount": 189, "address": "456 Old Road, Shanghai"}
+      ]
+    },
+    "max_steps": 10,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}}, "match_args": {"table": "orders"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}, "updates": {"address": "123 New Street, Beijing"}}, "match_args": {"table": "orders", "updates": {"address": "123 New Street, Beijing"}}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-3001", "user": "Diana", "product": "Monitor Stand", "status": "pending", "amount": 189, "address": "123 New Street, Beijing"}
+      ]
+    },
+    "required_info": ["123 New Street, Beijing"]
+  },
+  {
+    "id": "refund-004",
+    "description": "User requests a refund for a delivered order. Agent should create a refund record and update order status.",
+    "difficulty": "hard",
+    "initial_message": "I received order ORD-4001 but the item is damaged. I want a full refund.",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-4001", "user": "Eve", "product": "Glass Vase", "status": "delivered", "amount": 129}
+      ],
+      "refunds": []
+    },
+    "max_steps": 15,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-4001"}}, "match_args": {"table": "orders"}},
+      {"name": "insert", "arguments": {"table": "refunds", "record": {"order_id": "ORD-4001", "amount": 129, "reason": "damaged", "status": "pending"}}, "match_args": {"table": "refunds"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-4001"}, "updates": {"status": "refund_pending"}}, "match_args": {"table": "orders"}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-4001", "user": "Eve", "product": "Glass Vase", "status": "refund_pending", "amount": 129}
+      ],
+      "refunds": [
+        {"order_id": "ORD-4001", "amount": 129, "reason": "damaged", "status": "pending"}
+      ]
+    },
+    "required_info": ["refund", "ORD-4001"]
+  },
+  {
+    "id": "multi-step-005",
+    "description": "User wants to cancel one order and check the status of another.",
+    "difficulty": "hard",
+    "initial_message": "Please cancel my order ORD-5001, and also tell me the status of ORD-5002.",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-5001", "user": "Frank", "product": "Laptop Sleeve", "status": "pending", "amount": 79},
+        {"id": "ORD-5002", "user": "Frank", "product": "USB Hub", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
+      ]
+    },
+    "max_steps": 15,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-5001"}}, "match_args": {"table": "orders"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-5001"}, "updates": {"status": "cancelled"}}, "match_args": {"updates": {"status": "cancelled"}}},
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-5002"}}, "match_args": {"table": "orders"}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-5001", "user": "Frank", "product": "Laptop Sleeve", "status": "cancelled", "amount": 79},
+        {"id": "ORD-5002", "user": "Frank", "product": "USB Hub", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
+      ]
+    },
+    "required_info": ["cancelled", "shipped", "YT9876543210"]
+  }
+]
