@@ -1,0 +1,102 @@
+[
+  {
+    "id": "cancel-multiturn-001",
+    "description": "User wants to cancel an order but only provides the order ID when asked.",
+    "difficulty": "medium",
+    "initial_message": "I want to cancel an order",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-1001", "user": "Alice", "product": "Bluetooth Headphones", "status": "pending", "amount": 299}
+      ]
+    },
+    "max_steps": 15,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-1001"}}, "match_args": {"table": "orders"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-1001"}, "updates": {"status": "cancelled"}}, "match_args": {"table": "orders", "updates": {"status": "cancelled"}}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-1001", "user": "Alice", "product": "Bluetooth Headphones", "status": "cancelled", "amount": 299}
+      ]
+    },
+    "required_info": ["ORD-1001", "cancelled"],
+    "user_scenario": {
+      "persona": "A busy user who doesn't give all info upfront",
+      "goal": "Cancel order ORD-1001",
+      "script": [
+        {"if_contains": ["order", "订单", "which", "哪"], "reply": "ORD-1001"},
+        {"if_contains": ["cancelled", "已取消", "success", "成功"], "reply": null},
+        {"default": true, "reply": "I just want to cancel my order, please help"}
+      ]
+    }
+  },
+  {
+    "id": "refund-multiturn-002",
+    "description": "User wants a refund for a damaged item. Needs to provide order ID and reason.",
+    "difficulty": "hard",
+    "initial_message": "I need a refund",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-2001", "user": "Bob", "product": "Glass Vase", "status": "delivered", "amount": 129}
+      ],
+      "refunds": []
+    },
+    "max_steps": 20,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-2001"}}, "match_args": {"table": "orders"}},
+      {"name": "insert", "arguments": {"table": "refunds", "record": {"order_id": "ORD-2001", "amount": 129, "reason": "Item arrived broken - glass vase was shattered"}}, "match_args": {"table": "refunds"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-2001"}, "updates": {"status": "refunded"}}, "match_args": {"table": "orders"}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-2001", "user": "Bob", "product": "Glass Vase", "status": "refunded", "amount": 129}
+      ],
+      "refunds": [
+        {"order_id": "ORD-2001", "amount": 129, "reason": "Item arrived broken - glass vase was shattered"}
+      ]
+    },
+    "required_info": ["refund", "ORD-2001"],
+    "user_scenario": {
+      "persona": "A frustrated user who received a damaged product",
+      "goal": "Get a full refund for damaged order ORD-2001",
+      "script": [
+        {"if_contains": ["processed", "处理", "successfully", "completed", "已退款"], "reply": null},
+        {"if_contains": ["reason", "why", "what happened", "原因", "怎么", "details", "describe"], "reply": "The item arrived broken, the glass vase was shattered"},
+        {"if_contains": ["which order", "order id", "订单号", "哪个订单"], "reply": "ORD-2001"},
+        {"default": true, "reply": "I received a damaged item for order ORD-2001 and I want my money back"}
+      ]
+    }
+  },
+  {
+    "id": "address-change-multiturn-003",
+    "description": "User wants to change shipping address, provides details step by step.",
+    "difficulty": "medium",
+    "initial_message": "I need to update my shipping address",
+    "initial_state": {
+      "orders": [
+        {"id": "ORD-3001", "user": "Carol", "product": "Desk Lamp", "status": "pending", "amount": 89, "address": "100 Old Street"}
+      ]
+    },
+    "max_steps": 15,
+    "expected_actions": [
+      {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}}, "match_args": {"table": "orders"}},
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}, "updates": {"address": "200 New Avenue"}}, "match_args": {"table": "orders", "updates": {"address": "200 New Avenue"}}}
+    ],
+    "expected_state": {
+      "orders": [
+        {"id": "ORD-3001", "user": "Carol", "product": "Desk Lamp", "status": "pending", "amount": 89, "address": "200 New Avenue"}
+      ]
+    },
+    "required_info": ["200 New Avenue"],
+    "user_scenario": {
+      "persona": "A polite user moving to a new address",
+      "goal": "Change shipping address of order ORD-3001 to 200 New Avenue",
+      "script": [
+        {"if_contains": ["updated", "已更新", "changed", "修改", "successfully"], "reply": null},
+        {"if_contains": ["new address", "新地址", "what address", "new shipping", "provide the"], "reply": "200 New Avenue"},
+        {"if_contains": ["which order", "order id", "订单号", "哪个订单"], "reply": "ORD-3001"},
+        {"default": true, "reply": "I need to change the delivery address for my order, it's ORD-3001"}
+      ]
+    }
+  }
+]

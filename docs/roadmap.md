@@ -37,16 +37,21 @@
 
 ---
 
-## Step 2: 多轮对话能力
+## Step 2: 多轮对话能力 [已完成]
 
 **目标**：加入 LLM-as-User，让评估从"Agent 直接调工具"变为"Agent 和用户对话 + 调工具"
 
-**计划**：
-- [ ] `users/llm_user.py` — LLM 模拟用户（借鉴 τ²-Bench 的角色翻转技巧）
-- [ ] `users/scripted_user.py` — 脚本化用户（用于确定性测试）
-- [ ] 修改 Orchestrator 支持 Agent ↔ User ↔ Env 三方路由
-- [ ] Task 结构增加 `user_scenario` 字段（persona、instructions）
-- [ ] 终止条件扩展：USER_STOP、TOO_MANY_ERRORS
+**已实现**：
+- [x] `users/llm_user.py` — LLM 模拟用户（借鉴 τ²-Bench 的角色翻转技巧）
+- [x] `users/scripted_user.py` — 脚本化用户（用于确定性测试）
+- [x] 修改 Orchestrator 支持 Agent ↔ User ↔ Env 三方路由
+- [x] Task 结构增加 `user_scenario` 字段（persona、goal、script）
+- [x] 终止条件扩展：USER_STOP
+- [x] Registry 新增 `@registry.user("name")` 注册装饰器
+- [x] `run.py` 集成 user 配置
+- [x] 3 个多轮对话任务场景 (`scenarios/multi_turn_tasks.json`)
+- [x] 多轮对话专用配置 (`config_multi_turn.yaml`)
+- [x] 11 个单元测试全部通过 (`tests/test_multi_turn.py`)
 
 **验证点**：能完成多轮对话评估，用户模拟器行为自然。
 

@@ -2,7 +2,7 @@
 
 agent:
   adapter: openai_fc
-  model: glm-5 # 智谱模型，也可用 glm-4 / glm-4-plus
+  model: glm-4.7 # 智谱模型，也可用 glm-4 / glm-4-plus
   api_key: ${ZHIPU_API_KEY} # 通过环境变量设置，不要明文写在这里
   base_url: https://open.bigmodel.cn/api/paas/v4 # 智谱 OpenAI 兼容端点
   temperature: 0.0
