@@ -2,9 +2,9 @@
 
 agent:
   adapter: openai_fc
-  model: gpt-4o-mini            # Change to gpt-4o / claude-sonnet-4-20250514 etc.
-  api_key: ${OPENAI_API_KEY}    # Set via environment variable
-  base_url: ~                   # Set if using a proxy or compatible API
+  model: glm-5 # 智谱模型，也可用 glm-4 / glm-4-plus
+  api_key: ${ZHIPU_API_KEY} # 通过环境变量设置，不要明文写在这里
+  base_url: https://open.bigmodel.cn/api/paas/v4 # 智谱 OpenAI 兼容端点
   temperature: 0.0
 
 environment:
@@ -19,5 +19,5 @@ scenarios: scenarios/sample_tasks.json
 
 # Run settings
 run:
-  num_trials: 1                 # Run each task N times (for pass^k)
+  num_trials: 1 # Run each task N times (for pass^k)
   log_level: INFO

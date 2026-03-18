@@ -22,9 +22,11 @@ class MockDBEnvironment(Environment):
 
     def reset(self, task: Task) -> str:
         self.db = copy.deepcopy(task.initial_state)
-        tables = list(self.db.keys())
-        counts = {t: len(rows) for t, rows in self.db.items()}
-        return f"Database ready. Tables: {counts}"
+        lines = ["Database ready.\n"]
+        for table, rows in self.db.items():
+            columns = list(rows[0].keys()) if rows else []
+            lines.append(f"  Table '{table}': {len(rows)} row(s), columns: {columns}")
+        return "\n".join(lines)
 
     def step(self, tool_call: ToolCall) -> StepResult:
         name = tool_call.name

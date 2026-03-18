@@ -1,28 +1,28 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在本仓库中工作时提供指引。
 
-## Project Overview
+## 项目概述
 
-Agent Evaluator is a pluggable framework for evaluating AI agents on tool-calling tasks. It drives an Agent ↔ Environment interaction loop and scores the agent's performance across multiple dimensions. Currently at MVP stage (Step 1 of roadmap) with a mock database environment and OpenAI-compatible agent adapter.
+Agent Evaluator 是一个可插件化的 AI Agent 评估框架，驱动 Agent ↔ Environment 交互循环，并从多个维度对 Agent 的表现进行评分。当前处于 MVP 阶段（路线图 Step 1），包含内存模拟数据库环境和 OpenAI 兼容的 Agent 适配器。
 
-## Commands
+## 常用命令
 
 ```bash
-# Install dependencies
+# 安装依赖
 pip install -r requirements.txt
 
-# Run evaluation (requires OPENAI_API_KEY env var)
-python run.py                    # uses config.yaml
+# 运行评估（需要设置 OPENAI_API_KEY 环境变量）
+python run.py                    # 使用默认 config.yaml
 python run.py path/to/config.yaml
 
-# Run tests (no API key needed — uses scripted mock agent)
+# 运行测试（不需要 API key，使用脚本化 mock agent）
 python tests/test_core.py
 ```
 
-## Architecture
+## 架构
 
-The system has three pluggable extension points, all registered via decorator on the singleton `registry` in `core/registry.py`:
+系统有三个可插拔扩展点，均通过装饰器注册到 `core/registry.py` 中的全局单例 `registry`：
 
 ```
 @registry.adapter("name")      → AgentAdapter   (core/base.py)
@@ -30,26 +30,26 @@ The system has three pluggable extension points, all registered via decorator on
 @registry.evaluator("name")    → Evaluator      (core/base.py)
 ```
 
-**Orchestrator** (`core/orchestrator.py`) is the central loop engine. It only depends on the three abstract interfaces above — never on concrete implementations. The loop: reset agent+env → feed system prompt + user message → agent acts → env steps tool calls → repeat until done/max_steps → run all evaluators → return `EvalResult`.
+**Orchestrator**（`core/orchestrator.py`）是核心循环引擎，仅依赖上述三个抽象接口，不依赖具体实现。循环流程：重置 agent+env → 注入系统提示词 + 用户消息 → agent 生成响应 → env 执行工具调用 → 重复直到完成/达到最大步数 → 运行所有评估器 → 返回 `EvalResult`。
 
-**Evaluation scoring uses multiplicative combination** (not weighted average): `overall = state_match × action_match × info_delivery`. Any single 0 fails the entire task. This is a deliberate design choice from τ²-Bench.
+**评分采用乘积组合**（非加权平均）：`overall = state_match × action_match × info_delivery`。任一维度为 0 则总分为 0。这是借鉴 τ²-Bench 的设计决策。
 
-**State evaluation** works by replaying expected actions on a fresh environment copy, then comparing MD5 hashes of the two DB states. This makes evaluation order-independent and fully deterministic.
+**状态评估**通过在全新环境副本上重放期望动作，然后比较两个 DB 状态的 MD5 哈希值来实现。这使得评估与执行顺序无关，且完全确定性。
 
-### Current implementations
+### 当前实现
 
-- **Adapter**: `openai_fc` — any OpenAI-compatible API with function calling
-- **Environment**: `mock_db` — in-memory CRUD database (query/update/insert/delete/done tools)
-- **Evaluators**: `state_match` (DB hash comparison), `action_match` (partial arg matching), `info_delivery` (substring check in agent replies)
+- **适配器**：`openai_fc` — 支持任何 OpenAI 兼容的函数调用 API
+- **环境**：`mock_db` — 内存 CRUD 数据库（query/update/insert/delete/done 工具）
+- **评估器**：`state_match`（DB 哈希比对）、`action_match`（部分参数匹配）、`info_delivery`（Agent 回复中的子串检查）
 
-## Adding New Components
+## 新增组件
 
-To add a new adapter/environment/evaluator: create a file in the corresponding directory, use the `@registry.{type}("name")` decorator, and import it in the package's `__init__.py`. The `core/` directory should require zero modifications.
+新增 adapter/environment/evaluator 的步骤：在对应目录下创建文件，使用 `@registry.{type}("name")` 装饰器，并在包的 `__init__.py` 中导入。`core/` 目录应无需任何修改。
 
-## Configuration
+## 配置
 
-`config.yaml` supports `${ENV_VAR}` expansion. Key sections: `agent` (adapter, model, api_key), `environment` (type), `evaluators` (list of names), `scenarios` (path to task JSON), `run` (num_trials, log_level).
+`config.yaml` 支持 `${ENV_VAR}` 环境变量展开。主要配置段：`agent`（adapter, model, api_key）、`environment`（type）、`evaluators`（名称列表）、`scenarios`（任务 JSON 路径）、`run`（num_trials, log_level）。
 
-## Task Scenario Format
+## 任务场景格式
 
-Tasks are defined in JSON arrays (`scenarios/sample_tasks.json`). Each task has: `id`, `description`, `initial_message`, `initial_state` (DB tables), `expected_actions` (with `match_args` for partial matching), `expected_state`, `required_info`, `difficulty`, `max_steps`.
+任务定义在 JSON 数组中（`scenarios/sample_tasks.json`）。每个任务包含：`id`、`description`、`initial_message`、`initial_state`（DB 表数据）、`expected_actions`（含 `match_args` 用于部分匹配）、`expected_state`、`required_info`、`difficulty`、`max_steps`。

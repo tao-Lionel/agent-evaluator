@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
@@ -10,12 +11,14 @@ import time
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 # ── Ensure project root is on sys.path ──
 PROJECT_ROOT = Path(__file__).resolve().parent
+load_dotenv(PROJECT_ROOT / ".env")
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.types import Task, EvalResult
+from core.types import Role, Task, EvalResult
 from core.registry import registry
 from core.orchestrator import Orchestrator
 
@@ -42,15 +45,37 @@ def load_tasks(path: str) -> list[Task]:
     return [Task.from_dict(item) for item in data]
 
 
-def print_result(result: EvalResult):
+def print_result(result: EvalResult, task: Task):
     status_icon = "PASS" if result.overall_score >= 1.0 - 1e-6 else "FAIL"
-    print(f"  [{status_icon}] {result.task_id}")
-    print(f"       Termination : {result.terminated.value}")
-    print(f"       Steps       : {result.steps_taken}")
+    print(f"  [{status_icon}] {result.task_id} ({task.difficulty})")
+    print(f"       Task     : {task.description}")
+    print(f"       User     : {task.initial_message}")
+    print()
+
+    # Agent trajectory: tool calls + replies
+    step_num = 0
+    for msg in result.trajectory:
+        if msg.role == Role.AGENT:
+            if msg.tool_calls:
+                for tc in msg.tool_calls:
+                    step_num += 1
+                    args_str = json.dumps(tc.arguments, ensure_ascii=False)
+                    print(f"       Step {step_num:<3}  : {tc.name}({args_str})")
+            if msg.content:
+                text = msg.content.replace("\n", " ").strip()
+                if len(text) > 120:
+                    text = text[:120] + "..."
+                print(f"       Reply    : {text}")
+    print()
+
+    # Scores
+    print(f"       Result   : {result.terminated.value}")
     for name, score in result.scores.items():
         bar = "+" * int(score * 10) + "-" * (10 - int(score * 10))
         print(f"       {name:15s}: {score:.2f} [{bar}]")
     print(f"       Overall     : {result.overall_score:.2f}")
+    print()
+    print("  " + "- " * 28)
     print()
 
 
@@ -93,6 +118,10 @@ _all_tasks: list[Task] = []
 
 def main():
     global _all_tasks
+
+    # Fix Windows console encoding
+    if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     config_path = sys.argv[1] if len(sys.argv) > 1 else "config.yaml"
     config = load_config(config_path)
@@ -161,7 +190,7 @@ def main():
         for task in tasks:
             result = orchestrator.run(task)
             all_results.append(result)
-            print_result(result)
+            print_result(result, task)
 
     elapsed = time.time() - start
 
@@ -173,9 +202,22 @@ def main():
     output_dir = PROJECT_ROOT / "results"
     output_dir.mkdir(exist_ok=True)
     output_file = output_dir / f"results_{int(time.time())}.json"
+    # Build task lookup for adding task info to results
+    task_map = {t.id: t for t in tasks}
+    results_data = []
+    for r in all_results:
+        entry = r.summary()
+        t = task_map.get(r.task_id)
+        if t:
+            entry["task"] = {
+                "description": t.description,
+                "difficulty": t.difficulty,
+                "initial_message": t.initial_message,
+            }
+        results_data.append(entry)
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(
-            [r.summary() for r in all_results],
+            results_data,
             f,
             ensure_ascii=False,
             indent=2,

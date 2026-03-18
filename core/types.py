@@ -91,4 +91,24 @@ class EvalResult:
             "steps_taken": self.steps_taken,
             "scores": self.scores,
             "overall_score": self.overall_score,
+            "trajectory": self._serialize_trajectory(),
         }
+
+    def _serialize_trajectory(self) -> list[dict[str, Any]]:
+        result = []
+        for msg in self.trajectory:
+            entry: dict[str, Any] = {"role": msg.role.value}
+            if msg.content:
+                entry["content"] = msg.content
+            if msg.tool_calls:
+                entry["tool_calls"] = [
+                    {"name": tc.name, "arguments": tc.arguments}
+                    for tc in msg.tool_calls
+                ]
+            if msg.tool_results:
+                entry["tool_results"] = [
+                    {"name": tr.name, "output": tr.output, "error": tr.error}
+                    for tr in msg.tool_results
+                ]
+            result.append(entry)
+        return result
