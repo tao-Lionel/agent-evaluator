@@ -61,7 +61,7 @@ class Orchestrator:
 
             # ── Case 1: text-only reply (no tool calls) ──
             if not agent_msg.tool_calls:
-                if self._is_stop_signal(agent_msg):
+                if self._is_stop_signal(agent_msg) or task.single_turn:
                     termination = TerminationReason.SUCCESS
                     break
                 # Agent said something but didn't call tools — next iteration

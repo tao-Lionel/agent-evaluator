@@ -151,13 +151,11 @@ def main():
     # Build agent adapter
     agent_cfg = config["agent"]
     AdapterClass = registry.get_adapter(agent_cfg["adapter"])
-    adapter = AdapterClass(
-        model=agent_cfg["model"],
-        api_key=agent_cfg["api_key"],
-        base_url=agent_cfg.get("base_url"),
-        tools=env.get_tool_schemas(),
-        temperature=agent_cfg.get("temperature", 0.0),
-    )
+    adapter_params = {k: v for k, v in agent_cfg.items() if k != "adapter"}
+    # Pass tool schemas if adapter accepts them
+    if env.get_tool_schemas():
+        adapter_params.setdefault("tools", env.get_tool_schemas())
+    adapter = AdapterClass(**adapter_params)
 
     # Build evaluators
     evaluator_names = config.get("evaluators", ["state_match", "action_match"])

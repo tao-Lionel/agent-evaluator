@@ -53,6 +53,7 @@ class Task:
     expected_state: dict[str, Any] = field(default_factory=dict)
     required_info: list[str] = field(default_factory=list)
     difficulty: str = "medium"
+    single_turn: bool = False
 
     @classmethod
     def from_dict(cls, data: dict) -> Task:
