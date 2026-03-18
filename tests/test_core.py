@@ -126,6 +126,113 @@ def test_wrong_action_agent():
     print("  PASSED")
 
 
+def test_state_subset_match():
+    """Agent that produces correct state with extra fields should get partial state score."""
+    task = Task(
+        id="test-refund",
+        description="Refund order ORD-2001",
+        initial_message="I need a refund",
+        initial_state={
+            "orders": [
+                {"id": "ORD-2001", "user": "Bob", "product": "Glass Vase", "status": "delivered", "amount": 129}
+            ],
+            "refunds": [],
+        },
+        max_steps=10,
+        expected_actions=[
+            # Gold actions produce exact state — but agent will differ
+            {"name": "insert", "arguments": {"table": "refunds", "record": {"order_id": "ORD-2001", "amount": 129, "reason": "damaged"}}},
+            {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-2001"}, "updates": {"status": "refunded"}}},
+        ],
+        expected_state={
+            "orders": [
+                {"id": "ORD-2001", "status": "refunded"}
+            ],
+            "refunds": [
+                {"order_id": "ORD-2001", "amount": 129}
+            ],
+        },
+    )
+
+    # Agent inserts refund with extra fields and different reason text
+    script = [
+        Message(role=Role.AGENT, tool_calls=[
+            ToolCall(name="insert", arguments={
+                "table": "refunds",
+                "record": {"order_id": "ORD-2001", "amount": 129, "reason": "Item was shattered", "user": "Bob"}
+            }, id="call_1"),
+        ]),
+        Message(role=Role.AGENT, tool_calls=[
+            ToolCall(name="update", arguments={
+                "table": "orders", "filters": {"id": "ORD-2001"}, "updates": {"status": "refunded"}
+            }, id="call_2"),
+        ]),
+        Message(role=Role.AGENT, content="Refund processed for ORD-2001."),
+        Message(role=Role.AGENT, tool_calls=[
+            ToolCall(name="done", arguments={}, id="call_3"),
+        ]),
+    ]
+
+    agent = ScriptedAgent(script)
+    env = MockDBEnvironment()
+    evaluator = StateEvaluator()
+
+    result = Orchestrator(agent, env, {"state_match": evaluator}).run(task)
+    score = result.scores["state_match"]
+
+    # Hash won't match (extra fields + different reason), but subset should:
+    # orders: id=ORD-2001 ✓, status=refunded ✓ → 2/2
+    # refunds: order_id=ORD-2001 ✓, amount=129 ✓ → 2/2
+    # Total: 4/4 = 1.0
+    print(f"  Subset match:  state_match={score:.2f}")
+    assert score == 1.0, f"Subset match should be 1.0, got {score}"
+    print("  PASSED")
+
+
+def test_state_subset_partial():
+    """Agent with partially correct state should get proportional score."""
+    task = Task(
+        id="test-partial",
+        description="Cancel order",
+        initial_message="Cancel ORD-1001",
+        initial_state={
+            "orders": [
+                {"id": "ORD-1001", "status": "pending", "amount": 299}
+            ],
+        },
+        max_steps=10,
+        expected_actions=[
+            {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-1001"}, "updates": {"status": "cancelled"}}},
+        ],
+        expected_state={
+            "orders": [
+                {"id": "ORD-1001", "status": "cancelled", "amount": 299}
+            ],
+        },
+    )
+
+    # Agent does nothing — status stays "pending"
+    script = [
+        Message(role=Role.AGENT, content="Done."),
+        Message(role=Role.AGENT, tool_calls=[
+            ToolCall(name="done", arguments={}, id="call_1"),
+        ]),
+    ]
+
+    agent = ScriptedAgent(script)
+    env = MockDBEnvironment()
+    evaluator = StateEvaluator()
+
+    result = Orchestrator(agent, env, {"state_match": evaluator}).run(task)
+    score = result.scores["state_match"]
+
+    # id=ORD-1001 ✓, status=cancelled ✗ (still pending), amount=299 ✓ → 2/3
+    expected = round(2 / 3, 2)
+    print(f"  Partial match: state_match={score:.2f} (expected ~{expected})")
+    assert abs(score - 2 / 3) < 0.01, f"Should be ~0.67, got {score}"
+    print("  PASSED")
+
+
 def test_max_steps():
     """Agent that never finishes should hit MAX_STEPS."""
     task = make_task()
@@ -191,5 +298,7 @@ if __name__ == "__main__":
     test_environment_crud()
     test_perfect_agent()
     test_wrong_action_agent()
+    test_state_subset_match()
+    test_state_subset_partial()
     test_max_steps()
     print("\n=== All tests passed ===\n")
