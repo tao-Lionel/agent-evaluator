@@ -233,13 +233,15 @@ def main():
         )
     print(f"  Results saved to {output_file}")
 
-    # Generate HTML report
-    report_file = output_file.with_suffix(".html")
+    # Generate HTML reports (English + Chinese)
     report_data = load_results(str(output_file))
-    html = generate_html(report_data, str(output_file))
-    with open(report_file, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"  Report saved to {report_file}\n")
+    for lang in ("en", "zh"):
+        report_file = output_file.with_suffix(f".{lang}.html")
+        html = generate_html(report_data, str(output_file), lang=lang)
+        with open(report_file, "w", encoding="utf-8") as f:
+            f.write(html)
+        print(f"  Report ({lang}) saved to {report_file}")
+    print()
 
 
 if __name__ == "__main__":
