@@ -57,17 +57,22 @@
 
 ---
 
-## Step 3: 多维报告 + 高级指标
+## Step 3: 多维报告 + 高级指标 [进行中]
 
 **目标**：输出有诊断价值的评估报告，而非只有一个数字
 
-**计划**：
-- [ ] Pass^k 一致性指标（借鉴 τ²-Bench）
+**已实现**：
+- [x] StateEvaluator 子集匹配 fallback（MD5 精确匹配失败时，按字段子集比较得 0.0~1.0）
+- [x] NL Assertion 评估器（`nl_assertion`，LLM-as-Judge 逐条判断自然语言断言 PASS/FAIL）
+- [x] HTML 评估报告生成（`report.py`，自包含深色主题，中英双语）
+- [x] 轨迹可视化（分色展示 SYSTEM/USER/AGENT/TOOL/ENV 消息，可折叠）
+- [x] 评估后自动生成中英双语报告（`results_*.en.html` + `results_*.zh.html`）
+- [x] 全面中文化（系统提示词、任务场景、用户脚本）
+
+**待完成**：
+- [ ] Pass^k 一致性指标（借鉴 τ²-Bench，多次运行衡量结果稳定性）
 - [ ] 进度率 Progress Rate（借鉴 AgentBoard，追踪每步 reward 变化）
 - [ ] 能力维度雷达图（借鉴 AgentBoard 的六维映射）
-- [ ] NL Assertion 评估器（LLM-as-Judge，借鉴 τ²-Bench）
-- [ ] HTML/Markdown 评估报告生成
-- [ ] 轨迹可视化（对话历史 + 工具调用 + 分数变化曲线）
 
 **验证点**：输出的报告能明确诊断"Agent 在哪里失败、为什么失败"。
 
