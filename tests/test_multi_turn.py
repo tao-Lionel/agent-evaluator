@@ -26,8 +26,26 @@ def test_task_user_scenario():
     print("  Task user_scenario: PASSED")
 
 
+from core.base import UserSimulator
+from core.registry import registry
+
+
+def test_user_registry():
+    @registry.user("test_user")
+    class FakeUser(UserSimulator):
+        def reset(self, task):
+            pass
+        def respond(self, task, trajectory):
+            return None
+
+    cls = registry.get_user("test_user")
+    assert cls is FakeUser
+    print("  User registry: PASSED")
+
+
 if __name__ == "__main__":
     print("\n=== Multi-Turn Tests ===\n")
     test_user_stop_termination()
     test_task_user_scenario()
+    test_user_registry()
     print("\n=== All passed ===\n")

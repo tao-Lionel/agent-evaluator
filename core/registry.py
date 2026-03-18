@@ -10,6 +10,7 @@ class Registry:
         self._adapters: dict[str, type] = {}
         self._environments: dict[str, type] = {}
         self._evaluators: dict[str, type] = {}
+        self._users: dict[str, type] = {}
 
     # ── decorators ──
 
@@ -31,6 +32,12 @@ class Registry:
             return cls
         return wrap
 
+    def user(self, name: str):
+        def wrap(cls):
+            self._users[name] = cls
+            return cls
+        return wrap
+
     # ── lookups ──
 
     def get_adapter(self, name: str) -> type:
@@ -48,11 +55,17 @@ class Registry:
             raise KeyError(f"Evaluator '{name}' not registered. Available: {list(self._evaluators)}")
         return self._evaluators[name]
 
+    def get_user(self, name: str) -> type:
+        if name not in self._users:
+            raise KeyError(f"User '{name}' not registered. Available: {list(self._users)}")
+        return self._users[name]
+
     def list_all(self) -> dict[str, list[str]]:
         return {
             "adapters": list(self._adapters),
             "environments": list(self._environments),
             "evaluators": list(self._evaluators),
+            "users": list(self._users),
         }
 
 
