@@ -172,7 +172,7 @@ def main():
     all_results: list[EvalResult] = []
 
     print("-" * 60)
-    print(f"  Agent   : {agent_cfg['model']}")
+    print(f"  Agent   : {agent_cfg.get('model', agent_cfg['adapter'])}")
     print(f"  Env     : {env_type}")
     print(f"  Evals   : {', '.join(evaluator_names)}")
     print(f"  Trials  : {num_trials}")
