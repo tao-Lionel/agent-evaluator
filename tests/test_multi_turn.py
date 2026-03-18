@@ -227,6 +227,47 @@ def test_scripted_user_no_script_ends():
     print("  ScriptedUser no script ends: PASSED")
 
 
+from users.llm_user import LLMUserSimulator
+
+
+def test_llm_user_prompt_building():
+    """Test prompt construction without calling LLM."""
+    user = LLMUserSimulator.__new__(LLMUserSimulator)
+
+    task = Task(
+        id="t1", description="Cancel order",
+        initial_message="I want to cancel",
+        initial_state={},
+        user_scenario={
+            "persona": "an impatient customer",
+            "goal": "cancel order ORD-1001",
+        },
+    )
+    trajectory = [
+        Message(role=Role.USER, content="I want to cancel"),
+        Message(role=Role.AGENT, content="Which order?"),
+    ]
+
+    messages = user._build_messages(task, trajectory)
+    assert messages[0]["role"] == "system"
+    assert "impatient customer" in messages[0]["content"]
+    assert "cancel order ORD-1001" in messages[0]["content"]
+    assert "[TASK_DONE]" in messages[0]["content"]
+    # Should have user and agent messages
+    assert any(m["role"] == "user" for m in messages[1:])
+    assert any(m["role"] == "assistant" for m in messages[1:])
+    print("  LLMUser prompt building: PASSED")
+
+
+def test_llm_user_parse_done():
+    """Test TASK_DONE detection."""
+    user = LLMUserSimulator.__new__(LLMUserSimulator)
+    assert user._is_done("Thanks! [TASK_DONE]") is True
+    assert user._is_done("I still need help") is False
+    assert user._is_done("[TASK_DONE] ok bye") is True
+    print("  LLMUser parse done: PASSED")
+
+
 if __name__ == "__main__":
     print("\n=== Multi-Turn Tests ===\n")
     test_user_stop_termination()
@@ -237,4 +278,6 @@ if __name__ == "__main__":
     test_scripted_user_keyword_match()
     test_scripted_user_default_branch()
     test_scripted_user_no_script_ends()
+    test_llm_user_prompt_building()
+    test_llm_user_parse_done()
     print("\n=== All passed ===\n")
