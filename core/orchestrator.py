@@ -142,11 +142,11 @@ class Orchestrator:
     @staticmethod
     def _build_system_prompt(init_obs: str, task: Task) -> str:
         return (
-            "You are a helpful customer service agent. "
-            "Use the provided tools to fulfill the user's request. "
-            "When the task is fully completed, call the 'done' tool.\n\n"
-            f"## Environment Info\n{init_obs}\n\n"
-            f"## Task Description\n{task.description}"
+            "你是一个专业的客服助手。"
+            "请使用提供的工具来完成用户的请求。"
+            "任务全部完成后，请调用 'done' 工具。\n\n"
+            f"## 环境信息\n{init_obs}\n\n"
+            f"## 任务描述\n{task.description}"
         )
 
     @staticmethod

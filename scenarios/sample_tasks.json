@@ -1,13 +1,13 @@
 [
   {
     "id": "order-cancel-001",
-    "description": "User wants to cancel a pending order.",
+    "description": "用户想取消一个待处理的订单。",
     "difficulty": "easy",
-    "initial_message": "Hi, I want to cancel my order ORD-1001.",
+    "initial_message": "你好，我想取消订单 ORD-1001。",
     "initial_state": {
       "orders": [
-        {"id": "ORD-1001", "user": "Alice", "product": "Bluetooth Headphones", "status": "pending", "amount": 299},
-        {"id": "ORD-1002", "user": "Bob", "product": "USB-C Cable", "status": "shipped", "amount": 39}
+        {"id": "ORD-1001", "user": "Alice", "product": "蓝牙耳机", "status": "pending", "amount": 299},
+        {"id": "ORD-1002", "user": "Bob", "product": "USB-C 数据线", "status": "shipped", "amount": 39}
       ]
     },
     "max_steps": 10,
@@ -17,20 +17,20 @@
     ],
     "expected_state": {
       "orders": [
-        {"id": "ORD-1001", "user": "Alice", "product": "Bluetooth Headphones", "status": "cancelled", "amount": 299},
-        {"id": "ORD-1002", "user": "Bob", "product": "USB-C Cable", "status": "shipped", "amount": 39}
+        {"id": "ORD-1001", "user": "Alice", "product": "蓝牙耳机", "status": "cancelled", "amount": 299},
+        {"id": "ORD-1002", "user": "Bob", "product": "USB-C 数据线", "status": "shipped", "amount": 39}
       ]
     },
     "required_info": ["ORD-1001", "cancelled"]
   },
   {
     "id": "order-query-002",
-    "description": "User asks about the status of their order.",
+    "description": "用户查询订单状态。",
     "difficulty": "easy",
-    "initial_message": "Can you check the status of order ORD-2001 for me?",
+    "initial_message": "帮我查一下订单 ORD-2001 的状态。",
     "initial_state": {
       "orders": [
-        {"id": "ORD-2001", "user": "Charlie", "product": "Mechanical Keyboard", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
+        {"id": "ORD-2001", "user": "Charlie", "product": "机械键盘", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
       ]
     },
     "max_steps": 10,
@@ -39,41 +39,41 @@
     ],
     "expected_state": {
       "orders": [
-        {"id": "ORD-2001", "user": "Charlie", "product": "Mechanical Keyboard", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
+        {"id": "ORD-2001", "user": "Charlie", "product": "机械键盘", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
       ]
     },
     "required_info": ["shipped", "SF1234567890"]
   },
   {
     "id": "order-update-003",
-    "description": "User wants to change the shipping address for a pending order.",
+    "description": "用户想修改待处理订单的收货地址。",
     "difficulty": "medium",
-    "initial_message": "I need to update the shipping address for order ORD-3001 to '123 New Street, Beijing'.",
+    "initial_message": "我要把订单 ORD-3001 的收货地址改成「北京市新街123号」。",
     "initial_state": {
       "orders": [
-        {"id": "ORD-3001", "user": "Diana", "product": "Monitor Stand", "status": "pending", "amount": 189, "address": "456 Old Road, Shanghai"}
+        {"id": "ORD-3001", "user": "Diana", "product": "显示器支架", "status": "pending", "amount": 189, "address": "上海市旧路456号"}
       ]
     },
     "max_steps": 10,
     "expected_actions": [
       {"name": "query", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}}, "match_args": {"table": "orders"}},
-      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}, "updates": {"address": "123 New Street, Beijing"}}, "match_args": {"table": "orders", "updates": {"address": "123 New Street, Beijing"}}}
+      {"name": "update", "arguments": {"table": "orders", "filters": {"id": "ORD-3001"}, "updates": {"address": "北京市新街123号"}}, "match_args": {"table": "orders", "updates": {"address": "北京市新街123号"}}}
     ],
     "expected_state": {
       "orders": [
-        {"id": "ORD-3001", "user": "Diana", "product": "Monitor Stand", "status": "pending", "amount": 189, "address": "123 New Street, Beijing"}
+        {"id": "ORD-3001", "user": "Diana", "product": "显示器支架", "status": "pending", "amount": 189, "address": "北京市新街123号"}
       ]
     },
-    "required_info": ["123 New Street, Beijing"]
+    "required_info": ["北京市新街123号"]
   },
   {
     "id": "refund-004",
-    "description": "User requests a refund for a delivered order. Agent should create a refund record and update order status.",
+    "description": "用户收到损坏商品，要求全额退款。Agent 需要创建退款记录并更新订单状态。",
     "difficulty": "hard",
-    "initial_message": "I received order ORD-4001 but the item is damaged. I want a full refund.",
+    "initial_message": "我收到了订单 ORD-4001，但东西是坏的，我要全额退款。",
     "initial_state": {
       "orders": [
-        {"id": "ORD-4001", "user": "Eve", "product": "Glass Vase", "status": "delivered", "amount": 129}
+        {"id": "ORD-4001", "user": "Eve", "product": "玻璃花瓶", "status": "delivered", "amount": 129}
       ],
       "refunds": []
     },
@@ -85,23 +85,23 @@
     ],
     "expected_state": {
       "orders": [
-        {"id": "ORD-4001", "user": "Eve", "product": "Glass Vase", "status": "refund_pending", "amount": 129}
+        {"id": "ORD-4001", "user": "Eve", "product": "玻璃花瓶", "status": "refund_pending", "amount": 129}
       ],
       "refunds": [
-        {"order_id": "ORD-4001", "amount": 129, "reason": "damaged", "status": "pending"}
+        {"order_id": "ORD-4001", "amount": 129}
       ]
     },
-    "required_info": ["refund", "ORD-4001"]
+    "required_info": ["退款", "ORD-4001"]
   },
   {
     "id": "multi-step-005",
-    "description": "User wants to cancel one order and check the status of another.",
+    "description": "用户想取消一个订单，同时查询另一个订单的状态。",
     "difficulty": "hard",
-    "initial_message": "Please cancel my order ORD-5001, and also tell me the status of ORD-5002.",
+    "initial_message": "请帮我取消订单 ORD-5001，另外帮我查一下 ORD-5002 的状态。",
     "initial_state": {
       "orders": [
-        {"id": "ORD-5001", "user": "Frank", "product": "Laptop Sleeve", "status": "pending", "amount": 79},
-        {"id": "ORD-5002", "user": "Frank", "product": "USB Hub", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
+        {"id": "ORD-5001", "user": "Frank", "product": "笔记本内胆包", "status": "pending", "amount": 79},
+        {"id": "ORD-5002", "user": "Frank", "product": "USB 扩展坞", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
       ]
     },
     "max_steps": 15,
@@ -112,8 +112,8 @@
     ],
     "expected_state": {
       "orders": [
-        {"id": "ORD-5001", "user": "Frank", "product": "Laptop Sleeve", "status": "cancelled", "amount": 79},
-        {"id": "ORD-5002", "user": "Frank", "product": "USB Hub", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
+        {"id": "ORD-5001", "user": "Frank", "product": "笔记本内胆包", "status": "cancelled", "amount": 79},
+        {"id": "ORD-5002", "user": "Frank", "product": "USB 扩展坞", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
       ]
     },
     "required_info": ["cancelled", "shipped", "YT9876543210"]
