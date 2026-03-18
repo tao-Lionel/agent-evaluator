@@ -14,7 +14,10 @@ from core.types import (
     TerminationReason,
     EvalResult,
 )
+from typing import TYPE_CHECKING
 from core.base import AgentAdapter, Environment, Evaluator
+if TYPE_CHECKING:
+    from core.base import UserSimulator as UserSimulatorType
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +30,18 @@ class Orchestrator:
         agent: AgentAdapter,
         env: Environment,
         evaluators: dict[str, Evaluator],
+        user: UserSimulatorType | None = None,
     ):
         self.agent = agent
         self.env = env
         self.evaluators = evaluators
+        self.user = user
 
     def run(self, task: Task) -> EvalResult:
         start = time.time()
         self.agent.reset()
+        if self.user:
+            self.user.reset(task)
         init_obs = self.env.reset(task)
 
         # Build initial conversation
@@ -64,8 +71,14 @@ class Orchestrator:
                 if self._is_stop_signal(agent_msg) or task.single_turn:
                     termination = TerminationReason.SUCCESS
                     break
-                # Agent said something but didn't call tools — next iteration
-                # will feed this back in; in MVP we just continue
+
+                # Route to user simulator if available
+                if self.user:
+                    user_msg = self.user.respond(task, trajectory)
+                    if user_msg is None:
+                        termination = TerminationReason.USER_STOP
+                        break
+                    trajectory.append(user_msg)
                 continue
 
             # ── Case 2: tool calls ──
