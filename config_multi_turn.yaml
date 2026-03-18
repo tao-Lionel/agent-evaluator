@@ -17,6 +17,7 @@ evaluators:
   - state_match
   - action_match
   - info_delivery
+  - nl_assertion
 
 scenarios: scenarios/multi_turn_tasks.json
 

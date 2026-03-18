@@ -56,6 +56,11 @@
       ]
     },
     "required_info": ["refund", "ORD-2001"],
+    "nl_assertions": [
+      "The orders table should have ORD-2001 with status 'refunded' or 'refund_pending'",
+      "The refunds table should contain a record with order_id 'ORD-2001'",
+      "The refund amount for ORD-2001 should be 129"
+    ],
     "user_scenario": {
       "persona": "A frustrated user who received a damaged product",
       "goal": "Get a full refund for damaged order ORD-2001",

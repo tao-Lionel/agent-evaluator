@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.types import Role, Message, Task
 from environments.passthrough import PassthroughEnvironment
 from evaluators.llm_judge import LLMJudgeEvaluator
+from evaluators.nl_assertion import NLAssertionEvaluator, _parse_results
 
 
 def test_scoring_logic():
@@ -45,6 +46,51 @@ def test_prompt_building():
     print("  LLMJudge prompt building: PASSED")
 
 
+def test_nl_assertion_parse_results():
+    """Test parsing [PASS]/[FAIL] lines from judge response."""
+    text = """[PASS] orders table has ORD-2001 with status refunded - status is refunded
+[PASS] refunds table contains record for ORD-2001 - record exists
+[FAIL] refund amount should be 200 - actual amount is 129"""
+
+    passed, total = _parse_results(text, 3)
+    assert passed == 2, f"Expected 2 passes, got {passed}"
+    assert total == 3, f"Expected 3 total, got {total}"
+    print("  NLAssertion parse results: PASSED")
+
+
+def test_nl_assertion_no_assertions():
+    """Task with no nl_assertions should return 1.0."""
+    evaluator = NLAssertionEvaluator.__new__(NLAssertionEvaluator)
+
+    task = Task(
+        id="t1", description="test", initial_message="hi",
+        initial_state={}, nl_assertions=[],
+    )
+    score = evaluator.evaluate(task, [], PassthroughEnvironment())
+    assert score == 1.0, f"Expected 1.0 for no assertions, got {score}"
+    print("  NLAssertion no assertions: PASSED")
+
+
+def test_nl_assertion_parse_edge_cases():
+    """Test parse_results with edge cases."""
+    # All pass
+    passed, total = _parse_results("[PASS] a\n[PASS] b", 2)
+    assert passed == 2 and total == 2
+
+    # Empty response — judge produced nothing
+    passed, total = _parse_results("", 3)
+    assert passed == 0 and total == 3
+
+    # Case insensitive
+    passed, total = _parse_results("[pass] a\n[FAIL] b", 2)
+    assert passed == 1 and total == 2
+
+    print("  NLAssertion edge cases: PASSED")
+
+
 if __name__ == "__main__":
     test_scoring_logic()
     test_prompt_building()
+    test_nl_assertion_parse_results()
+    test_nl_assertion_no_assertions()
+    test_nl_assertion_parse_edge_cases()

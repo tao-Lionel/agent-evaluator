@@ -55,6 +55,7 @@ class Task:
     difficulty: str = "medium"
     single_turn: bool = False
     user_scenario: dict[str, Any] | None = None
+    nl_assertions: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict) -> Task:
