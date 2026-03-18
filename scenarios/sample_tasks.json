@@ -21,7 +21,7 @@
         {"id": "ORD-1002", "user": "Bob", "product": "USB-C 数据线", "status": "shipped", "amount": 39}
       ]
     },
-    "required_info": ["ORD-1001", "cancelled"]
+    "required_info": ["ORD-1001", "取消"]
   },
   {
     "id": "order-query-002",
@@ -42,7 +42,7 @@
         {"id": "ORD-2001", "user": "Charlie", "product": "机械键盘", "status": "shipped", "amount": 599, "tracking": "SF1234567890"}
       ]
     },
-    "required_info": ["shipped", "SF1234567890"]
+    "required_info": ["已发货", "SF1234567890"]
   },
   {
     "id": "order-update-003",
@@ -116,6 +116,6 @@
         {"id": "ORD-5002", "user": "Frank", "product": "USB 扩展坞", "status": "shipped", "amount": 159, "tracking": "YT9876543210"}
       ]
     },
-    "required_info": ["cancelled", "shipped", "YT9876543210"]
+    "required_info": ["取消", "已发货", "YT9876543210"]
   }
 ]

@@ -19,7 +19,7 @@
         {"id": "ORD-1001", "user": "Alice", "product": "蓝牙耳机", "status": "cancelled", "amount": 299}
       ]
     },
-    "required_info": ["ORD-1001", "cancelled"],
+    "required_info": ["ORD-1001", "取消"],
     "user_scenario": {
       "persona": "一个很忙的用户，不会主动提供全部信息",
       "goal": "取消订单 ORD-1001",
@@ -57,7 +57,7 @@
     },
     "required_info": ["退款", "ORD-2001"],
     "nl_assertions": [
-      "orders 表中 ORD-2001 的 status 应为 refunded 或 refund_pending",
+      "orders 表中 ORD-2001 的 status 应为 refunded、refund_pending 或 refunding",
       "refunds 表中应包含 order_id 为 ORD-2001 的记录",
       "ORD-2001 的退款金额应为 129"
     ],
