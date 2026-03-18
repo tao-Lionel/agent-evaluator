@@ -143,6 +143,90 @@ def test_orchestrator_without_user_unchanged():
     print("  Orchestrator without user (backward compat): PASSED")
 
 
+from users.scripted_user import ScriptedUserSimulator
+
+
+def test_scripted_user_keyword_match():
+    user = ScriptedUserSimulator()
+    task = Task(
+        id="t1", description="test", initial_message="cancel order",
+        initial_state={},
+        user_scenario={
+            "persona": "test user",
+            "goal": "cancel order",
+            "script": [
+                {"if_contains": ["which", "订单号"], "reply": "ORD-1001"},
+                {"if_contains": ["cancelled", "已取消"], "reply": None},
+                {"default": True, "reply": "just help me"},
+            ],
+        },
+    )
+    user.reset(task)
+
+    # Agent asks for order ID -> matches "order"
+    trajectory = [
+        Message(role=Role.USER, content="cancel order"),
+        Message(role=Role.AGENT, content="Which order would you like to cancel?"),
+    ]
+    result = user.respond(task, trajectory)
+    assert result is not None
+    assert result.content == "ORD-1001"
+    assert result.role == Role.USER
+
+    # Agent confirms cancellation -> matches "cancelled", reply is None -> done
+    trajectory.append(result)
+    trajectory.append(Message(role=Role.AGENT, content="Order ORD-1001 has been cancelled."))
+    result = user.respond(task, trajectory)
+    assert result is None  # user satisfied
+
+    print("  ScriptedUser keyword match: PASSED")
+
+
+def test_scripted_user_default_branch():
+    user = ScriptedUserSimulator()
+    task = Task(
+        id="t2", description="test", initial_message="hi",
+        initial_state={},
+        user_scenario={
+            "persona": "test",
+            "goal": "test",
+            "script": [
+                {"if_contains": ["xyz_no_match"], "reply": "matched"},
+                {"default": True, "reply": "I need help"},
+            ],
+        },
+    )
+    user.reset(task)
+
+    trajectory = [
+        Message(role=Role.USER, content="hi"),
+        Message(role=Role.AGENT, content="Hello! How can I help?"),
+    ]
+    result = user.respond(task, trajectory)
+    assert result is not None
+    assert result.content == "I need help"
+    print("  ScriptedUser default branch: PASSED")
+
+
+def test_scripted_user_no_script_ends():
+    """Task without script -> immediate end."""
+    user = ScriptedUserSimulator()
+    task = Task(
+        id="t3", description="test", initial_message="hi",
+        initial_state={},
+        user_scenario={"persona": "test", "goal": "test"},
+    )
+    user.reset(task)
+
+    trajectory = [
+        Message(role=Role.USER, content="hi"),
+        Message(role=Role.AGENT, content="Hello!"),
+    ]
+    result = user.respond(task, trajectory)
+    assert result is None
+    print("  ScriptedUser no script ends: PASSED")
+
+
 if __name__ == "__main__":
     print("\n=== Multi-Turn Tests ===\n")
     test_user_stop_termination()
@@ -150,4 +234,7 @@ if __name__ == "__main__":
     test_user_registry()
     test_orchestrator_with_user()
     test_orchestrator_without_user_unchanged()
+    test_scripted_user_keyword_match()
+    test_scripted_user_default_branch()
+    test_scripted_user_no_script_ends()
     print("\n=== All passed ===\n")
