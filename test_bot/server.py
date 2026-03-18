@@ -23,6 +23,20 @@ SYSTEM_PROMPT = (
 )
 
 
+def generate_reply(message: str) -> str:
+    """Call Zhipu API and return the reply text. Shared by HTTP and Feishu handlers."""
+    response = client.chat.completions.create(
+        model="glm-4-flash",
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": message},
+        ],
+        temperature=0.7,
+        max_tokens=1024,
+    )
+    return response.choices[0].message.content
+
+
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str | None = None
@@ -35,17 +49,8 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
-    response = client.chat.completions.create(
-        model="glm-4-flash",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": req.message},
-        ],
-        temperature=0.7,
-        max_tokens=1024,
-    )
     return ChatResponse(
-        reply=response.choices[0].message.content,
+        reply=generate_reply(req.message),
         conversation_id=req.conversation_id,
     )
 
