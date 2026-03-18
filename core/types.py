@@ -54,6 +54,7 @@ class Task:
     required_info: list[str] = field(default_factory=list)
     difficulty: str = "medium"
     single_turn: bool = False
+    user_scenario: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Task:
@@ -73,6 +74,7 @@ class TerminationReason(Enum):
     MAX_STEPS = "max_steps"
     AGENT_ERROR = "agent_error"
     ENV_ERROR = "env_error"
+    USER_STOP = "user_stop"
 
 
 @dataclass

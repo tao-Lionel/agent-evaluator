@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from core.types import Message, Task, StepResult, ToolCall
+from core.types import Message, Task, StepResult, ToolCall, Role
 
 
 class AgentAdapter(ABC):
@@ -52,4 +52,22 @@ class Evaluator(ABC):
     @abstractmethod
     def evaluate(self, task: Task, trajectory: list[Message], env: Environment) -> float:
         """Return a score between 0.0 and 1.0."""
+        ...
+
+
+class UserSimulator(ABC):
+    """Simulated user for multi-turn conversations."""
+
+    @abstractmethod
+    def reset(self, task: Task) -> None:
+        """Reset state for a new task."""
+        ...
+
+    @abstractmethod
+    def respond(self, task: Task, trajectory: list[Message]) -> Message | None:
+        """Generate user reply based on conversation so far.
+
+        Returns a Message with role=USER, or None if the user is satisfied
+        and the conversation should end.
+        """
         ...
