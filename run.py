@@ -26,6 +26,7 @@ from core.orchestrator import Orchestrator
 import adapters  # noqa: F401
 import environments  # noqa: F401
 import evaluators  # noqa: F401
+import users  # noqa: F401
 
 
 def load_config(path: str) -> dict:
@@ -164,8 +165,16 @@ def main():
         EvalClass = registry.get_evaluator(name)
         evaluator_map[name] = EvalClass()
 
+    # Build user simulator (optional)
+    user = None
+    if "user" in config:
+        user_cfg = config["user"]
+        UserClass = registry.get_user(user_cfg["type"])
+        user_params = {k: v for k, v in user_cfg.items() if k != "type"}
+        user = UserClass(**user_params)
+
     # Build orchestrator
-    orchestrator = Orchestrator(adapter, env, evaluator_map)
+    orchestrator = Orchestrator(adapter, env, evaluator_map, user=user)
 
     # Run evaluation
     num_trials = config.get("run", {}).get("num_trials", 1)
@@ -174,6 +183,7 @@ def main():
     print("-" * 60)
     print(f"  Agent   : {agent_cfg.get('model', agent_cfg['adapter'])}")
     print(f"  Env     : {env_type}")
+    print(f"  User    : {config.get('user', {}).get('type', 'none')}")
     print(f"  Evals   : {', '.join(evaluator_names)}")
     print(f"  Trials  : {num_trials}")
     print("-" * 60)
