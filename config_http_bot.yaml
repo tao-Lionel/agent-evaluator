@@ -1,0 +1,18 @@
+agent:
+  adapter: http_bot
+  bot_url: http://localhost:8100/chat
+  message_field: message
+  reply_field: reply
+
+environment:
+  type: passthrough
+
+evaluators:
+  - info_delivery
+  - llm_judge
+
+scenarios: scenarios/http_bot_tasks.json
+
+run:
+  num_trials: 1
+  log_level: INFO

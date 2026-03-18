@@ -1,0 +1,52 @@
+[
+  {
+    "id": "greeting-001",
+    "description": "User greets the bot, expecting a friendly response.",
+    "difficulty": "easy",
+    "single_turn": true,
+    "initial_message": "Hi there! What can you help me with?",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": []
+  },
+  {
+    "id": "shipping-002",
+    "description": "User asks about shipping time.",
+    "difficulty": "easy",
+    "single_turn": true,
+    "initial_message": "How long does standard shipping take?",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": []
+  },
+  {
+    "id": "refund-policy-003",
+    "description": "User asks about refund policy, agent should mention the return window and process.",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": "What is your refund policy? Can I return an item after 30 days?",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": ["refund", "return"]
+  },
+  {
+    "id": "product-recommend-004",
+    "description": "User asks for a product recommendation, agent should provide helpful suggestions.",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": "I'm looking for a gift for my friend who likes cooking. Any suggestions under $50?",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": []
+  },
+  {
+    "id": "complaint-005",
+    "description": "User complains about a bad experience, agent should be empathetic and offer a solution.",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": "I'm very disappointed. My order arrived late and the packaging was damaged. This is the second time this has happened!",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": ["sorry", "apolog"]
+  }
+]
