@@ -21,6 +21,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.types import Role, Task, EvalResult
 from core.registry import registry
 from core.orchestrator import Orchestrator
+from report import generate_html, load_results
 
 # Register all pluggable components
 import adapters  # noqa: F401
@@ -230,7 +231,15 @@ def main():
             ensure_ascii=False,
             indent=2,
         )
-    print(f"  Results saved to {output_file}\n")
+    print(f"  Results saved to {output_file}")
+
+    # Generate HTML report
+    report_file = output_file.with_suffix(".html")
+    report_data = load_results(str(output_file))
+    html = generate_html(report_data, str(output_file))
+    with open(report_file, "w", encoding="utf-8") as f:
+        f.write(html)
+    print(f"  Report saved to {report_file}\n")
 
 
 if __name__ == "__main__":
