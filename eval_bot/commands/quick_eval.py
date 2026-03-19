@@ -8,10 +8,12 @@ import time
 from pathlib import Path
 from typing import Any
 
+from openai import OpenAI
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.types import Task, EvalResult
+from core.types import Task, EvalResult, Role
 from core.registry import registry
 from core.orchestrator import Orchestrator
 from report import generate_html, load_results
@@ -25,6 +27,72 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_EVALUATORS = ["info_delivery", "llm_judge"]
 DEFAULT_SCENARIOS = "scenarios/http_bot_tasks.json"
+
+ANALYSIS_SYSTEM_PROMPT = """\
+你是一个评测分析专家。请根据失败任务的对话轨迹和评分，分析失败原因并给出改进建议。
+
+要求：
+1. 找出失败任务的共性模式（理解力问题？信息遗漏？回复不准确？）
+2. 按严重程度排序
+3. 给出具体、可操作的改进建议
+4. 回复简洁，不超过 300 字"""
+
+
+def analyze_failures(
+    results_data: list[dict],
+    all_results: list[EvalResult],
+    task_map: dict[str, Task],
+) -> str:
+    """Use LLM to analyze failed tasks and provide improvement suggestions."""
+    failed = [
+        (r, rd) for r, rd in zip(all_results, results_data)
+        if r.overall_score < 1.0 - 1e-6
+    ]
+    if not failed:
+        return ""
+
+    # Build context from failed tasks' trajectories
+    context_parts = []
+    for result, rdata in failed:
+        task = task_map.get(result.task_id)
+        desc = task.description if task else result.task_id
+        scores = rdata.get("scores", {})
+
+        # Extract key messages from trajectory
+        messages = []
+        for msg in result.trajectory:
+            if msg.role == Role.USER and msg.content:
+                messages.append(f"用户: {msg.content[:200]}")
+            elif msg.role == Role.AGENT and msg.content:
+                messages.append(f"Bot: {msg.content[:200]}")
+        conversation = "\n".join(messages[-6:])  # Last 6 messages
+
+        context_parts.append(
+            f"### 失败任务: {desc}\n"
+            f"分项得分: {json.dumps(scores, ensure_ascii=False)}\n"
+            f"对话摘要:\n{conversation}\n"
+        )
+
+    context = "\n".join(context_parts)
+
+    try:
+        client = OpenAI(
+            api_key=os.getenv("ZHIPU_API_KEY", ""),
+            base_url="https://open.bigmodel.cn/api/paas/v4",
+        )
+        response = client.chat.completions.create(
+            model="glm-4-flash",
+            messages=[
+                {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
+                {"role": "user", "content": f"以下是本次评测中失败的任务:\n\n{context}"},
+            ],
+            temperature=0.3,
+            max_tokens=1024,
+        )
+        return response.choices[0].message.content or ""
+    except Exception as e:
+        logger.error("Failed to analyze results: %s", e)
+        return ""
 
 
 def build_eval_config(
@@ -107,10 +175,19 @@ def run_quick_eval(
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results_data, f, ensure_ascii=False, indent=2)
 
+    # Analyze failures
+    analysis = analyze_failures(results_data, all_results, task_map)
+
+    # Save analysis into results JSON
+    if analysis:
+        results_data.append({"_analysis": analysis})
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(results_data, f, ensure_ascii=False, indent=2)
+
     # Generate HTML report
     report_data = load_results(str(output_file))
     report_file = output_file.with_suffix(".zh.html")
-    html = generate_html(report_data, str(output_file), lang="zh")
+    html = generate_html(report_data, str(output_file), lang="zh", analysis=analysis)
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(html)
 
@@ -131,6 +208,9 @@ def run_quick_eval(
         desc = t.description if t else r.task_id
         summary_lines.append(f"  [{status}] {desc} ({r.overall_score:.1%})")
 
+    if analysis:
+        summary_lines.append(f"\n📋 失败分析:\n{analysis}")
+
     summary_lines.append(f"\n详细报告: {report_file}")
 
     return {
@@ -140,4 +220,5 @@ def run_quick_eval(
         "avg_score": avg,
         "total": total,
         "passed": passed,
+        "analysis": analysis,
     }

@@ -1,0 +1,77 @@
+[
+  {
+    "id": "refund-001",
+    "description": "用户申请标准退款，产品在退货期内且无损坏",
+    "difficulty": "easy",
+    "single_turn": true,
+    "initial_message": "我想申请退款，我上个月买的衬衫还没穿过，可以退吗？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "退货",
+      "流程",
+      "时间",
+      "条件"
+    ]
+  },
+  {
+    "id": "refund-002",
+    "description": "用户询问退款处理时间",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": "我已经提交退款申请3天了，请问退款什么时候能到账？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "处理时间",
+      "审核",
+      "退款周期",
+      "银行"
+    ]
+  },
+  {
+    "id": "refund-003",
+    "description": "用户询问部分退款的可能性",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": "我只想退货套装中的上衣，裤子想保留，可以部分退款吗？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "部分退款",
+      "商品",
+      "退货",
+      "政策"
+    ]
+  },
+  {
+    "id": "refund-004",
+    "description": "用户申请已超过退货期限的商品退款",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": "我半年前买的手机现在坏了，但已经过了退货期，可以申请特殊退款吗？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "特殊处理",
+      "退货期限",
+      "例外情况",
+      "评估"
+    ]
+  },
+  {
+    "id": "refund-005",
+    "description": "用户询问退款后优惠券的处理方式",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": "我用了一张8折优惠券买的商品，现在申请退款，优惠券会怎么处理？还能重新使用吗？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "优惠券",
+      "退还",
+      "有效期",
+      "重新使用"
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "id": "refund-001",
+    "description": "用户请求退款，符合标准退货政策",
+    "difficulty": "easy",
+    "single_turn": true,
+    "initial_message": "我想申请退款，我收到的商品有质量问题。",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "退款",
+      "流程",
+      "申请"
+    ]
+  },
+  {
+    "id": "refund-002",
+    "description": "用户询问退款时间线",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": "退款需要多长时间才能到账？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "时间",
+      "处理",
+      "周期",
+      "工作日"
+    ]
+  },
+  {
+    "id": "refund-003",
+    "description": "用户询问部分退款的可能性",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": "我只想要退款订单中的部分商品，而不是整个订单，可以吗？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "部分退款",
+      "政策",
+      "条件",
+      "限制"
+    ]
+  },
+  {
+    "id": "refund-004",
+    "description": "用户询问退款后商品处理方式",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": "退款后，我需要把商品寄回去吗？运费谁来承担？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "退货",
+      "地址",
+      "运费",
+      "标签"
+    ]
+  },
+  {
+    "id": "refund-005",
+    "description": "用户询问超过退货期限后的退款可能性",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": "我已经收到商品两周了，现在才发现问题，还能申请退款吗？",
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [
+      "期限",
+      "例外",
+      "特殊",
+      "情况",
+      "延期"
+    ]
+  }
+]
