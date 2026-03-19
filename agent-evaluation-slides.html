@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent 评估体系：维度、机制与实践</title>
+
+<!-- Fonts: Archivo (display) + Nunito (body) -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;700;800;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   CSS CUSTOM PROPERTIES (SWISS MODERN THEME)
+   Change these to change the whole look
+   =========================================== */
+:root {
+    /* Colors */
+    --bg-primary: #ffffff;
+    --bg-dark: #0a0a0a;
+    --bg-warm: #f7f6f4;
+    --text-primary: #0a0a0a;
+    --text-secondary: #666;
+    --text-muted: #999;
+    --accent: #ff3300;
+    --accent-light: rgba(255, 51, 0, 0.08);
+    --accent-medium: rgba(255, 51, 0, 0.15);
+    --border: rgba(10, 10, 10, 0.08);
+
+    /* Typography — MUST use clamp() */
+    --font-display: 'Archivo', sans-serif;
+    --font-body: 'Nunito', sans-serif;
+    --title-size: clamp(1.8rem, 5vw, 4rem);
+    --h2-size: clamp(1.4rem, 3.5vw, 2.5rem);
+    --h3-size: clamp(1rem, 2vw, 1.4rem);
+    --body-size: clamp(0.75rem, 1.3vw, 1.05rem);
+    --small-size: clamp(0.6rem, 0.9vw, 0.8rem);
+    --code-size: clamp(0.65rem, 1vw, 0.85rem);
+
+    /* Spacing — MUST use clamp() */
+    --slide-padding: clamp(1.5rem, 5vw, 5rem);
+    --content-gap: clamp(0.75rem, 2vw, 2rem);
+    --element-gap: clamp(0.25rem, 1vw, 1rem);
+
+    /* Animation */
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --duration: 0.6s;
+}
+
+/* ===========================================
+   BASE RESET
+   =========================================== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ===========================================
+   VIEWPORT FITTING: MANDATORY BASE STYLES
+   =========================================== */
+html, body {
+    height: 100%;
+    overflow-x: hidden;
+}
+html {
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+}
+.slide {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+.slide-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-height: 100%;
+    overflow: hidden;
+    padding: var(--slide-padding);
+}
+.card, .container, .content-box {
+    max-width: min(90vw, 1000px);
+    max-height: min(80vh, 700px);
+}
+.feature-list, .bullet-list {
+    gap: clamp(0.4rem, 1vh, 1rem);
+}
+.feature-list li, .bullet-list li {
+    font-size: var(--body-size);
+    line-height: 1.4;
+}
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+    gap: clamp(0.5rem, 1.5vw, 1rem);
+}
+img, .image-container {
+    max-width: 100%;
+    max-height: min(50vh, 400px);
+    object-fit: contain;
+}
+
+/* Short viewports */
+@media (max-height: 700px) {
+    :root {
+        --slide-padding: clamp(0.75rem, 3vw, 2rem);
+        --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+        --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+        --h2-size: clamp(1rem, 3vw, 1.75rem);
+    }
+}
+@media (max-height: 600px) {
+    :root {
+        --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+        --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+        --title-size: clamp(1.1rem, 4vw, 2rem);
+        --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+    }
+    .nav-dots, .keyboard-hint, .decorative { display: none; }
+}
+@media (max-height: 500px) {
+    :root {
+        --slide-padding: clamp(0.4rem, 2vw, 1rem);
+        --title-size: clamp(1rem, 3.5vw, 1.5rem);
+        --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+        --body-size: clamp(0.65rem, 1vw, 0.85rem);
+    }
+}
+@media (max-width: 600px) {
+    :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+    .grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+    }
+    html { scroll-behavior: auto; }
+}
+
+/* ===========================================
+   SWISS MODERN: SLIDE STYLES
+   =========================================== */
+
+/* --- Shared slide structure --- */
+.slide {
+    background: var(--bg-primary);
+    font-family: var(--font-body);
+    color: var(--text-primary);
+}
+
+/* --- Accent bar (left edge) --- */
+.slide::before {
+    content: '';
+    position: absolute; left: 0; top: 0;
+    width: clamp(5px, 0.6vw, 8px);
+    height: 100%;
+    background: var(--accent);
+    z-index: 10;
+}
+
+/* --- Grid overlay --- */
+.slide::after {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+        repeating-linear-gradient(90deg, transparent, transparent calc(100% / 12 - 1px), var(--border) calc(100% / 12 - 1px), var(--border) calc(100% / 12));
+    pointer-events: none; z-index: 0;
+    opacity: 0.5;
+}
+
+/* --- Slide number --- */
+.slide-num {
+    position: absolute;
+    top: clamp(1rem, 3vh, 2rem);
+    right: clamp(1.5rem, 4vw, 3rem);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--small-size);
+    color: var(--text-muted);
+    z-index: 5;
+}
+
+/* --- Section label --- */
+.section-label {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: var(--small-size);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: clamp(0.5rem, 1.5vh, 1rem);
+}
+
+/* --- Headings --- */
+h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    line-height: 1.1;
+}
+h1 { font-size: var(--title-size); }
+h2 { font-size: var(--h2-size); }
+h3 { font-size: var(--h3-size); font-weight: 700; }
+
+/* --- Body text --- */
+p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
+
+/* --- Reveal animation --- */
+.reveal {
+    opacity: 0;
+    transform: translateY(clamp(15px, 3vh, 30px));
+    transition: opacity var(--duration) var(--ease-out-expo),
+                transform var(--duration) var(--ease-out-expo);
+}
+.slide.visible .reveal {
+    opacity: 1;
+    transform: translateY(0);
+}
+.reveal:nth-child(1) { transition-delay: 0.05s; }
+.reveal:nth-child(2) { transition-delay: 0.15s; }
+.reveal:nth-child(3) { transition-delay: 0.25s; }
+.reveal:nth-child(4) { transition-delay: 0.35s; }
+.reveal:nth-child(5) { transition-delay: 0.45s; }
+.reveal:nth-child(6) { transition-delay: 0.55s; }
+
+/* ===========================================
+   GEOMETRIC DECORATIONS
+   =========================================== */
+.geo {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+}
+.geo-circle {
+    border: clamp(2px, 0.3vw, 5px) solid var(--accent);
+    border-radius: 50%;
+}
+.geo-rect {
+    background: var(--bg-dark);
+}
+.geo-line {
+    height: clamp(2px, 0.3vw, 4px);
+    background: var(--accent);
+}
+.geo-dot {
+    width: clamp(6px, 0.8vw, 10px);
+    height: clamp(6px, 0.8vw, 10px);
+    background: var(--accent);
+    border-radius: 50%;
+}
+
+/* ===========================================
+   CONTENT COMPONENTS
+   =========================================== */
+
+/* --- Tables --- */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--body-size);
+}
+.data-table th {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: var(--small-size);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: clamp(0.3rem, 0.8vh, 0.6rem) clamp(0.5rem, 1vw, 1rem);
+    border-bottom: 2px solid var(--bg-dark);
+    color: var(--text-primary);
+}
+.data-table td {
+    padding: clamp(0.25rem, 0.6vh, 0.5rem) clamp(0.5rem, 1vw, 1rem);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: top;
+}
+.data-table tr:last-child td { border-bottom: none; }
+
+/* --- Code blocks --- */
+.code-block {
+    background: var(--bg-dark);
+    color: #e8e8e8;
+    font-family: 'Courier New', monospace;
+    font-size: var(--code-size);
+    line-height: 1.5;
+    padding: clamp(0.75rem, 2vw, 1.5rem);
+    border-radius: clamp(4px, 0.4vw, 8px);
+    overflow: hidden;
+    white-space: pre;
+    max-height: min(40vh, 350px);
+}
+.code-block .accent { color: var(--accent); }
+.code-block .dim { color: #666; }
+.code-block .green { color: #4ec9b0; }
+.code-block .yellow { color: #dcdcaa; }
+.code-block .blue { color: #569cd6; }
+
+/* --- Cards grid --- */
+.cards-grid {
+    display: grid;
+    gap: clamp(0.5rem, 1.2vw, 1rem);
+}
+.cards-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.cards-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+.info-card {
+    background: var(--bg-warm);
+    border-radius: clamp(4px, 0.4vw, 8px);
+    padding: clamp(0.75rem, 1.5vw, 1.5rem);
+    border-left: clamp(3px, 0.3vw, 4px) solid var(--accent);
+}
+.info-card h3 {
+    font-size: clamp(0.8rem, 1.3vw, 1.1rem);
+    margin-bottom: clamp(0.2rem, 0.5vh, 0.4rem);
+    color: var(--text-primary);
+}
+.info-card p {
+    font-size: var(--small-size);
+    color: var(--text-secondary);
+}
+
+/* --- Highlight box --- */
+.highlight-box {
+    background: var(--accent-light);
+    border-left: clamp(3px, 0.4vw, 5px) solid var(--accent);
+    padding: clamp(0.6rem, 1.5vw, 1.2rem) clamp(0.8rem, 2vw, 1.5rem);
+    border-radius: 0 clamp(4px, 0.4vw, 8px) clamp(4px, 0.4vw, 8px) 0;
+    font-size: var(--body-size);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* --- Pill tag --- */
+.pill {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(0.55rem, 0.8vw, 0.7rem);
+    letter-spacing: 0.05em;
+    padding: clamp(2px, 0.3vh, 4px) clamp(6px, 0.8vw, 10px);
+    border-radius: 100px;
+    background: var(--accent);
+    color: #fff;
+}
+
+/* --- Two-column layout --- */
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(1rem, 3vw, 3rem);
+    align-items: start;
+}
+
+/* --- Comparison columns --- */
+.vs-container {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: clamp(0.5rem, 1.5vw, 1.5rem);
+    align-items: center;
+}
+.vs-divider {
+    width: clamp(2px, 0.3vw, 3px);
+    height: clamp(60px, 15vh, 150px);
+    background: var(--border);
+}
+
+/* --- Diagram container --- */
+.diagram {
+    background: var(--bg-warm);
+    border-radius: clamp(4px, 0.4vw, 8px);
+    padding: clamp(0.75rem, 2vw, 1.5rem);
+    font-family: 'Courier New', monospace;
+    font-size: var(--code-size);
+    line-height: 1.6;
+    color: var(--text-primary);
+    white-space: pre;
+    overflow: hidden;
+}
+
+/* ===========================================
+   PROGRESS BAR
+   =========================================== */
+.progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: clamp(2px, 0.3vh, 4px);
+    background: var(--accent);
+    z-index: 1000;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+/* ===========================================
+   NAVIGATION DOTS
+   =========================================== */
+.nav-dots {
+    position: fixed;
+    right: clamp(0.75rem, 2vw, 1.5rem);
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(4px, 0.6vh, 8px);
+    z-index: 100;
+}
+.nav-dot {
+    width: clamp(6px, 0.6vw, 8px);
+    height: clamp(6px, 0.6vw, 8px);
+    border-radius: 50%;
+    background: rgba(10, 10, 10, 0.15);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    padding: 0;
+}
+.nav-dot.active {
+    background: var(--accent);
+    transform: scale(1.4);
+}
+
+/* ===========================================
+   DARK SLIDE VARIANT
+   =========================================== */
+.slide-dark {
+    background: var(--bg-dark);
+    color: #fff;
+}
+.slide-dark::before { background: #ff3300; }
+.slide-dark::after {
+    background:
+        repeating-linear-gradient(90deg, transparent, transparent calc(100% / 12 - 1px), rgba(255,255,255,0.03) calc(100% / 12 - 1px), rgba(255,255,255,0.03) calc(100% / 12));
+}
+.slide-dark .slide-num { color: #555; }
+.slide-dark p, .slide-dark li { color: #aaa; }
+.slide-dark .section-label { color: var(--accent); }
+.slide-dark .data-table th { color: #fff; border-bottom-color: #444; }
+.slide-dark .data-table td { color: #aaa; border-bottom-color: rgba(255,255,255,0.08); }
+.slide-dark .info-card { background: rgba(255,255,255,0.05); }
+.slide-dark .info-card h3 { color: #fff; }
+.slide-dark .info-card p { color: #aaa; }
+.slide-dark .highlight-box { background: rgba(255,51,0,0.1); color: #fff; }
+.slide-dark .diagram { background: rgba(255,255,255,0.05); color: #ddd; }
+
+/* ===========================================
+   TITLE SLIDE SPECIAL
+   =========================================== */
+.title-slide .slide-content {
+    padding-left: clamp(4rem, 10vw, 10rem);
+}
+.title-slide h1 {
+    font-size: clamp(2.2rem, 6vw, 5rem);
+    font-weight: 900;
+    line-height: 1.0;
+    margin-bottom: clamp(0.5rem, 1.5vh, 1rem);
+}
+.title-subtitle {
+    font-size: clamp(0.9rem, 1.8vw, 1.3rem);
+    color: var(--text-secondary);
+    max-width: min(90%, 550px);
+}
+.title-meta {
+    display: flex;
+    gap: clamp(1rem, 3vw, 2.5rem);
+    margin-top: clamp(1.5rem, 4vh, 3rem);
+}
+.title-meta span {
+    font-family: var(--font-display);
+    font-size: var(--small-size);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ===========================================
+   RESPONSIVE: STACK GRIDS ON NARROW
+   =========================================== */
+@media (max-width: 768px) {
+    .two-col, .cards-grid-2, .cards-grid-3, .vs-container {
+        grid-template-columns: 1fr;
+    }
+    .vs-divider { display: none; }
+    .title-slide .slide-content {
+        padding-left: var(--slide-padding);
+    }
+}
+
+/* ===========================================
+   INLINE EDITING (Opt-in)
+   =========================================== */
+.edit-hotzone {
+    position: fixed; top: 0; left: 0;
+    width: 80px; height: 80px;
+    z-index: 10000;
+    cursor: pointer;
+}
+.edit-toggle {
+    position: fixed;
+    top: clamp(0.5rem, 1.5vh, 1rem);
+    left: clamp(0.5rem, 1.5vw, 1rem);
+    background: var(--bg-dark);
+    color: #fff;
+    border: none;
+    border-radius: clamp(4px, 0.4vw, 6px);
+    padding: clamp(4px, 0.6vh, 8px) clamp(8px, 1vw, 14px);
+    font-family: var(--font-display);
+    font-size: var(--small-size);
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 10001;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, background 0.2s ease;
+}
+.edit-toggle.show,
+.edit-toggle.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+.edit-toggle.active {
+    background: var(--accent);
+}
+.edit-banner {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: var(--accent);
+    color: #fff;
+    text-align: center;
+    font-family: var(--font-display);
+    font-size: var(--small-size);
+    font-weight: 700;
+    padding: clamp(3px, 0.4vh, 6px);
+    z-index: 9999;
+    display: none;
+    letter-spacing: 0.05em;
+}
+.edit-banner.show { display: block; }
+[contenteditable="true"] {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Navigation dots -->
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+<!-- Edit controls -->
+<div class="edit-hotzone" id="editHotzone"></div>
+<button class="edit-toggle" id="editToggle" title="Edit mode (E)">EDIT</button>
+<div class="edit-banner" id="editBanner">EDIT MODE — Click text to edit | Ctrl+S to save</div>
+
+<!-- ============================================
+     SLIDE 01: TITLE
+     ============================================ -->
+<section class="slide slide-dark" data-slide="0">
+    <div class="slide-content">
+        <!-- Geometric decorations -->
+        <div class="geo geo-circle" style="width:clamp(140px,22vw,320px);height:clamp(140px,22vw,320px);top:clamp(1rem,6vh,4rem);right:clamp(2rem,8vw,8rem);"></div>
+        <div class="geo geo-rect" style="width:clamp(60px,10vw,140px);height:clamp(60px,10vw,140px);bottom:clamp(4rem,14vh,10rem);right:clamp(8rem,18vw,16rem);background:var(--accent);"></div>
+        <div class="geo geo-line" style="width:clamp(50px,8vw,120px);top:clamp(5rem,16vh,12rem);right:clamp(1rem,4vw,4rem);"></div>
+
+        <div class="section-label reveal">Technical Sharing</div>
+        <h1 class="reveal">AI Agent<br>评估体系</h1>
+        <p class="title-subtitle reveal">维度、机制与实践</p>
+        <div class="title-meta reveal">
+            <span>小组内部技术分享</span>
+            <span>2026-03-19</span>
+        </div>
+    </div>
+    <span class="slide-num">01 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 02: WHY EVALUATE AGENT?
+     ============================================ -->
+<section class="slide" data-slide="1">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">Part 01</div>
+        <h2 class="reveal">为什么要评估 Agent？</h2>
+        <p class="reveal" style="margin:clamp(0.5rem,1.5vh,1rem) 0;max-width:min(90%,600px);">
+            Agent = LLM + 工具调用 + 环境交互 + 多轮决策
+        </p>
+        <div class="highlight-box reveal" style="max-width:min(90%,600px);margin-top:clamp(0.5rem,1vh,0.75rem);">
+            一个好的 LLM 不一定是一个好的 Agent。模型在基准测试上得分很高，但接入工具后可能频繁产生非法调用、忘记上下文、或无法完成多步任务。
+        </div>
+        <div class="cards-grid cards-grid-3 reveal" style="margin-top:clamp(0.75rem,2vh,1.5rem);max-width:min(95%,900px);">
+            <div class="info-card">
+                <h3>选型决策</h3>
+                <p>在多个 Agent 方案中选出最优</p>
+            </div>
+            <div class="info-card">
+                <h3>质量保障</h3>
+                <p>上线前验证 Agent 是否达标</p>
+            </div>
+            <div class="info-card">
+                <h3>诊断改进</h3>
+                <p>定位 Agent 的薄弱环节</p>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">02 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 03: FAILURE MODES
+     ============================================ -->
+<section class="slide slide-dark" data-slide="2">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">不评估会怎样？</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">典型失败模式</h2>
+        <table class="data-table reveal" style="max-width:min(95%,850px);">
+            <thead>
+                <tr><th style="width:28%;">Agent 类型</th><th>典型失败</th></tr>
+            </thead>
+            <tbody>
+                <tr><td><strong>客服对话</strong></td><td>声称"已退款"但实际未调用任何工具</td></tr>
+                <tr><td><strong>代码生成</strong></td><td>通过编译但逻辑错误；修复 A 引入 B</td></tr>
+                <tr><td><strong>浏览器自动化</strong></td><td>点击错误按钮；页面未加载就操作</td></tr>
+                <tr><td><strong>数据分析</strong></td><td>SQL 返回结果但逻辑错误；幻觉解读</td></tr>
+                <tr><td><strong>OS 操作</strong></td><td>误删文件；权限越界；命令顺序错误</td></tr>
+            </tbody>
+        </table>
+        <div class="highlight-box reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(95%,850px);">
+            这些问题只有通过系统性的多维度评估才能发现 — 仅靠人工试用远远不够。
+        </div>
+    </div>
+    <span class="slide-num">03 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 04: DIMENSION OVERVIEW
+     ============================================ -->
+<section class="slide" data-slide="3">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">Part 02</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">评估维度全景</h2>
+        <p class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);max-width:min(90%,650px);">
+            基于 AgentBoard、AgentBench、&tau;&sup2;-Bench 三大框架的调研总结
+        </p>
+        <div class="cards-grid cards-grid-3 reveal" style="max-width:min(95%,950px);">
+            <div class="info-card" style="border-left-color:#ff3300;">
+                <h3>执行正确性</h3>
+                <p>做对了吗？— 状态变更、动作执行、工具使用</p>
+            </div>
+            <div class="info-card" style="border-left-color:#0066cc;">
+                <h3>交互质量</h3>
+                <p>表达好吗？— 信息传达、回复质量、多轮连贯</p>
+            </div>
+            <div class="info-card" style="border-left-color:#00994d;">
+                <h3>行为合规</h3>
+                <p>守规矩吗？— 策略遵循、安全边界、一致性</p>
+            </div>
+        </div>
+        <div class="diagram reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(95%,950px);font-size:var(--small-size);line-height:1.4;">State Match  Action Match  Info Delivery  LLM Judge  NL Assertion  Pass^k
+  <span style="color:var(--accent);">做对了吗</span>      <span style="color:var(--accent);">走对路吗</span>      <span style="color:#0066cc;">说清楚吗</span>      <span style="color:#0066cc;">表达好吗</span>    <span style="color:#00994d;">守规矩吗</span>     <span style="color:#00994d;">稳得住吗</span></div>
+    </div>
+    <span class="slide-num">04 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 05: STATE MATCH
+     ============================================ -->
+<section class="slide" data-slide="4">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">维度一</div>
+        <h2 class="reveal">环境状态正确性 <span style="color:var(--accent);">State Match</span></h2>
+        <p class="reveal" style="margin:clamp(0.3rem,1vh,0.6rem) 0;max-width:min(90%,600px);">
+            Agent 说了什么不重要，重要的是<strong style="color:var(--text-primary);">做了什么</strong>。
+        </p>
+        <div class="two-col reveal" style="max-width:min(95%,900px);margin-top:clamp(0.3rem,1vh,0.6rem);">
+            <div>
+                <table class="data-table" style="font-size:var(--small-size);">
+                    <thead><tr><th>Agent 类型</th><th>"状态正确"</th></tr></thead>
+                    <tbody>
+                        <tr><td>客服</td><td>订单状态确实被修改</td></tr>
+                        <tr><td>代码</td><td>编译通过、测试通过</td></tr>
+                        <tr><td>浏览器</td><td>购物车中有正确商品</td></tr>
+                        <tr><td>DB 操作</td><td>表中数据与预期一致</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="code-block" style="font-size:clamp(0.55rem,0.85vw,0.75rem);line-height:1.45;">
+<span class="dim">// 评估流程</span>
+<span class="yellow">Gold</span>: 初始 → 期望动作 → hash_gold
+<span class="green">Pred</span>: 初始 → 实际轨迹 → hash_pred
+
+hash_gold == hash_pred ?
+  <span class="green">→ 1.0</span> 完全正确
+  <span class="accent">→ 0~1</span> 子集匹配 fallback</div>
+        </div>
+    </div>
+    <span class="slide-num">05 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 06: ACTION MATCH + INFO DELIVERY
+     ============================================ -->
+<section class="slide slide-dark" data-slide="5">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">维度二 & 三</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">动作匹配 & 信息传达</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div>
+                <h3 style="color:var(--accent);margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">Action Match</h3>
+                <p style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">Agent 是否执行了关键工具调用，参数是否正确</p>
+                <div class="code-block" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.4;">
+<span class="dim"># 部分参数匹配</span>
+expected = [
+  {<span class="yellow">"query"</span>,  table: <span class="green">"orders"</span>},
+  {<span class="yellow">"update"</span>, status: <span class="green">"cancelled"</span>}
+]
+<span class="dim"># 只比关键字段</span></div>
+            </div>
+            <div>
+                <h3 style="color:#4ec9b0;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">Info Delivery</h3>
+                <p style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">Agent 是否传达了用户必须知道的信息</p>
+                <table class="data-table" style="font-size:var(--small-size);">
+                    <thead><tr><th>Agent</th><th>必须传达</th></tr></thead>
+                    <tbody>
+                        <tr><td>客服</td><td>退款金额、到账时间</td></tr>
+                        <tr><td>代码</td><td>修改内容、潜在影响</td></tr>
+                        <tr><td>数据</td><td>查询结果、数据局限性</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">06 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 07: LLM JUDGE + NL ASSERTION
+     ============================================ -->
+<section class="slide" data-slide="6">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">维度四 & 五</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">回复质量 & 自然语言断言</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div>
+                <h3 style="color:var(--accent);margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">LLM Judge</h3>
+                <p style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">用 LLM 对回复打分 (1-5)，归一化为 0~1</p>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:clamp(0.2rem,0.5vh,0.4rem);">
+                    <li>准确性 — 信息是否正确？</li>
+                    <li>完整性 — 是否遗漏关键内容？</li>
+                    <li>清晰度 — 表达是否易懂？</li>
+                    <li>一致性 — 是否自相矛盾？</li>
+                </ul>
+                <div class="highlight-box" style="margin-top:clamp(0.3rem,0.8vh,0.5rem);font-size:var(--small-size);">
+                    特别适用于黑盒 Agent — 回复质量可能是唯一能评估的维度
+                </div>
+            </div>
+            <div>
+                <h3 style="color:#00994d;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">NL Assertion</h3>
+                <p style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">用自然语言描述评判条件，LLM 逐条判 PASS/FAIL</p>
+                <div class="code-block" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.4;">
+<span class="dim">// 客服 Agent 断言</span>
+<span class="green">PASS</span> 取消前确认了用户意图
+<span class="green">PASS</span> 未泄露其他客户信息
+<span class="accent">FAIL</span> 未提供替代方案
+
+<span class="yellow">score = 2/3 = 0.67</span></div>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">07 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 08: CONSISTENCY (Pass^k)
+     ============================================ -->
+<section class="slide slide-dark" data-slide="7">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">维度六</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">一致性与稳定性 <span style="color:var(--accent);">Pass^k</span></h2>
+        <p class="reveal" style="max-width:min(90%,600px);margin-bottom:clamp(0.5rem,1.5vh,1rem);">
+            对每个任务运行 n 次，衡量 Agent 的稳定性而非单次偶然成功
+        </p>
+        <div class="cards-grid cards-grid-3 reveal" style="max-width:min(95%,900px);">
+            <div class="info-card" style="border-left-color:var(--accent);">
+                <h3 style="color:var(--accent);">Pass^1 高 + Pass^k 低</h3>
+                <p>有能力但不稳定 — 最危险，给人虚假信心</p>
+            </div>
+            <div class="info-card" style="border-left-color:#666;">
+                <h3 style="color:#999;">Pass^1 低</h3>
+                <p>能力不足 — 问题明确，至少不会误导</p>
+            </div>
+            <div class="info-card" style="border-left-color:#4ec9b0;">
+                <h3 style="color:#4ec9b0;">Pass^1 高 + Pass^k 高</h3>
+                <p>既有能力又稳定 — 生产环境可信赖</p>
+            </div>
+        </div>
+        <div class="highlight-box reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(95%,900px);">
+            你不会信任一个"有时能正确写代码，有时写出 bug"的编码 Agent。
+        </div>
+    </div>
+    <span class="slide-num">08 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 09: AGENTBOARD PROCESS METRICS
+     ============================================ -->
+<section class="slide" data-slide="8">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">AgentBoard 启发</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">过程指标：不只看结果</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div>
+                <h3 style="color:var(--accent);margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">进度率 Progress Rate</h3>
+                <p style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">即使任务未完成，也追踪完成了多少子步骤</p>
+                <div class="diagram" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.5;">
+Agent A: 搜索→排序→选品→加购 <span style="color:#4ec9b0;">PR=1.0</span>
+Agent B: 搜索→排序→选品→放弃 <span style="color:#dcdcaa;">PR=0.75</span>
+Agent C: 搜索→(陷入循环)      <span style="color:var(--accent);">PR=0.25</span>
+Agent D: (什么都没做)          <span style="color:#999;">PR=0.0</span></div>
+            </div>
+            <div>
+                <h3 style="color:#0066cc;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">接地准确度 Grounding</h3>
+                <p style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">合法动作数 / 总动作数</p>
+                <div class="highlight-box">
+                    衡量 Agent 是否"知道自己能做什么" — 发出非法指令说明对工具理解有误
+                </div>
+                <p style="margin-top:clamp(0.3rem,0.8vh,0.5rem);font-size:var(--small-size);">
+                    <strong style="color:var(--text-primary);">关键价值：</strong>区分"完全失败"和"做了一半"的 Agent，为改进指明方向
+                </p>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">09 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 10: SCORING - PRODUCT VS AVERAGE
+     ============================================ -->
+<section class="slide slide-dark" data-slide="9">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">Part 03</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">乘积 vs 加权平均？</h2>
+        <div class="vs-container reveal" style="max-width:min(95%,900px);">
+            <div>
+                <h3 style="color:#999;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">加权平均</h3>
+                <div class="code-block" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.5;">
+<span class="dim">0.4 x state + 0.3 x action + 0.3 x info</span>
+
+state=<span class="accent">0</span>, action=1.0, info=1.0
+overall = <span class="yellow">0.6</span>
+
+<span class="dim">什么都没做对，还能拿 60 分？</span></div>
+            </div>
+            <div class="vs-divider" style="background:rgba(255,255,255,0.15);"></div>
+            <div>
+                <h3 style="color:var(--accent);margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">乘积组合 ✓</h3>
+                <div class="code-block" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.5;">
+<span class="dim">state x action x info</span>
+
+state=<span class="accent">0</span>, action=1.0, info=1.0
+overall = <span class="accent">0.0</span>
+
+<span class="green">任一维度为零，总分归零。</span></div>
+            </div>
+        </div>
+        <div class="highlight-box reveal" style="margin-top:clamp(0.75rem,2vh,1.5rem);max-width:min(95%,900px);">
+            Agent 的各评估维度之间是"与"关系，不是"或"关系。— &tau;&sup2;-Bench
+        </div>
+    </div>
+    <span class="slide-num">10 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 11: SCORING EXAMPLES
+     ============================================ -->
+<section class="slide" data-slide="10">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">评分实例</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">乘积组合的严格性</h2>
+        <table class="data-table reveal" style="max-width:min(95%,900px);">
+            <thead>
+                <tr><th>场景</th><th>state</th><th>action</th><th>info</th><th>overall</th><th>判定</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>代码写对但没解释</td>
+                    <td>1.0</td><td>1.0</td><td style="color:var(--accent);font-weight:700;">0.0</td>
+                    <td style="font-weight:700;">0.0</td><td style="color:var(--accent);">不合格</td>
+                </tr>
+                <tr>
+                    <td>解释清楚但没执行</td>
+                    <td style="color:var(--accent);font-weight:700;">0.0</td><td style="color:var(--accent);font-weight:700;">0.0</td><td>1.0</td>
+                    <td style="font-weight:700;">0.0</td><td style="color:var(--accent);">不合格</td>
+                </tr>
+                <tr>
+                    <td>查询正确，解释清楚</td>
+                    <td>1.0</td><td>1.0</td><td>1.0</td>
+                    <td style="font-weight:700;color:#00994d;">1.0</td><td style="color:#00994d;">合格</td>
+                </tr>
+                <tr>
+                    <td>操作正确但漏了步骤</td>
+                    <td>1.0</td><td style="font-weight:700;">0.5</td><td>1.0</td>
+                    <td style="font-weight:700;">0.5</td><td>部分合格</td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(90%,700px);">
+            <strong style="color:var(--text-primary);">注意：</strong>多个维度都是 0.8 时，乘积会快速衰减（0.8⁵ = 0.33）。实践中通过选择合适的评估器组合来控制严格程度。
+        </p>
+    </div>
+    <span class="slide-num">11 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 12: ARCHITECTURE - LOOP
+     ============================================ -->
+<section class="slide slide-dark" data-slide="11">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">Part 04</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">Agent-Environment 交互循环</h2>
+        <div class="diagram reveal" style="max-width:min(95%,700px);font-size:clamp(0.55rem,0.9vw,0.8rem);line-height:1.5;background:rgba(255,255,255,0.05);color:#ddd;">
+         ┌──────────┐
+初始化 → │  <span style="color:var(--accent);">Agent</span>   │ ←──────┐
+         │ (被评估者) │        │
+         └─────┬────┘        │
+               │          观察/反馈
+            动作/回复          │
+               │              │
+               ▼              │
+         ┌──────────────┐    │
+         │ <span style="color:#4ec9b0;">Environment</span>  │────┘
+         │  (任务环境)   │
+         └──────┬───────┘
+           任务完成/超时
+                │
+                ▼
+         ┌──────────────┐
+         │ <span style="color:#dcdcaa;">Evaluators</span>  │
+         │ (多维度评分)  │
+         └──────────────┘</div>
+        <p class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(90%,650px);">
+            这个循环是通用的 — 区别在于 Agent 用什么适配器、Environment 提供什么工具、Evaluators 关注哪些维度。
+        </p>
+    </div>
+    <span class="slide-num">12 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 13: PLUGIN ARCHITECTURE
+     ============================================ -->
+<section class="slide" data-slide="12">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">插件化设计</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">注册表模式：完全解耦</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div class="code-block" style="font-size:clamp(0.5rem,0.85vw,0.75rem);line-height:1.5;">
+<span class="dim">┌── 不变的框架核心 ──┐</span>
+│ <span class="yellow">Orchestrator</span>         │
+│   驱动交互循环        │
+│ <span class="yellow">Registry</span>             │
+│   插件注册表          │
+│ <span class="yellow">Report</span>               │
+│   评估报告生成        │
+<span class="dim">├── 可插拔的扩展 ────┤</span>
+│ <span class="accent">@registry.adapter</span>    │
+│ <span class="accent">@registry.environment</span>│
+│ <span class="accent">@registry.evaluator</span>  │
+│ <span class="accent">@registry.user</span>       │
+<span class="dim">└────────────────────┘</span></div>
+            <div>
+                <div class="info-card" style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">
+                    <h3>核心价值</h3>
+                    <p>新增 Agent 类型或评估维度只需添加一个文件 + 一个装饰器，不需要修改框架核心代码</p>
+                </div>
+                <table class="data-table" style="font-size:var(--small-size);">
+                    <thead><tr><th>Agent 类型</th><th>适配器</th><th>核心评估</th></tr></thead>
+                    <tbody>
+                        <tr><td>工具调用</td><td>openai_fc</td><td>state + action</td></tr>
+                        <tr><td>对话</td><td>http_bot</td><td>info + llm_judge</td></tr>
+                        <tr><td>黑盒</td><td>http_bot</td><td>llm_judge + nl</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">13 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 14: EVALUATION METHODS
+     ============================================ -->
+<section class="slide slide-dark" data-slide="13">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">评估方法分类</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">确定性 vs LLM-as-Judge</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div>
+                <h3 style="color:#4ec9b0;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">确定性评估</h3>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:clamp(0.2rem,0.5vh,0.35rem);">
+                    <li><span class="pill" style="background:#4ec9b0;color:#0a0a0a;">state_match</span> DB 哈希比对 + 子集比较</li>
+                    <li><span class="pill" style="background:#4ec9b0;color:#0a0a0a;">action_match</span> 工具名 + 参数匹配</li>
+                    <li><span class="pill" style="background:#4ec9b0;color:#0a0a0a;">info_delivery</span> 子串搜索</li>
+                </ul>
+                <p style="margin-top:clamp(0.3rem,0.8vh,0.5rem);font-size:var(--small-size);color:#4ec9b0;">
+                    完全可复现 | 零额外 API 调用
+                </p>
+            </div>
+            <div>
+                <h3 style="color:#dcdcaa;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">LLM-as-Judge</h3>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:clamp(0.2rem,0.5vh,0.35rem);">
+                    <li><span class="pill" style="background:#dcdcaa;color:#0a0a0a;">llm_judge</span> LLM 打分 (1-5)</li>
+                    <li><span class="pill" style="background:#dcdcaa;color:#0a0a0a;">nl_assertion</span> LLM 逐条判断 PASS/FAIL</li>
+                </ul>
+                <p style="margin-top:clamp(0.3rem,0.8vh,0.5rem);font-size:var(--small-size);color:#dcdcaa;">
+                    能评估开放式问题 | 需额外 LLM 调用
+                </p>
+            </div>
+        </div>
+        <div class="highlight-box reveal" style="margin-top:clamp(0.75rem,2vh,1.5rem);max-width:min(95%,950px);">
+            能用确定性评估的优先用确定性评估（更便宜、更可复现）；无法用规则衡量的维度才用 LLM-as-Judge。
+        </div>
+    </div>
+    <span class="slide-num">14 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 15: PRACTICAL GUIDE
+     ============================================ -->
+<section class="slide" data-slide="14">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <div class="section-label reveal">Part 05</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">实践建议</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div>
+                <h3 style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">维度选择决策树</h3>
+                <div class="diagram" style="font-size:clamp(0.5rem,0.8vw,0.68rem);line-height:1.45;">
+有状态变更？
+  <span style="color:#4ec9b0;">是</span> → state_match + action_match
+需要输出信息？
+  <span style="color:#4ec9b0;">是</span> → info_delivery
+需要评估主观质量？
+  <span style="color:#4ec9b0;">是</span> → llm_judge
+有难以规则化的约束？
+  <span style="color:#4ec9b0;">是</span> → nl_assertion
+需要生产可靠性？
+  <span style="color:#4ec9b0;">是</span> → 多次试验 + Pass^k</div>
+            </div>
+            <div>
+                <h3 style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">常见陷阱</h3>
+                <ul style="list-style:none;display:flex;flex-direction:column;gap:clamp(0.2rem,0.5vh,0.35rem);">
+                    <li><span style="color:var(--accent);font-weight:700;">×</span> 只看成功率 → 多维度评估</li>
+                    <li><span style="color:var(--accent);font-weight:700;">×</span> 评估不可复现 → temp=0 + Pass^k</li>
+                    <li><span style="color:var(--accent);font-weight:700;">×</span> 场景太简单 → 分难度 + 边界用例</li>
+                    <li><span style="color:var(--accent);font-weight:700;">×</span> 忽略过程只看结果 → action_match</li>
+                    <li><span style="color:var(--accent);font-weight:700;">×</span> 把评估当一次性测试 → 持续评估</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <span class="slide-num">15 / 16</span>
+</section>
+
+<!-- ============================================
+     SLIDE 16: SUMMARY
+     ============================================ -->
+<section class="slide slide-dark" data-slide="15">
+    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
+        <!-- Geometric decorations -->
+        <div class="geo geo-circle" style="width:clamp(100px,16vw,240px);height:clamp(100px,16vw,240px);bottom:clamp(2rem,8vh,6rem);right:clamp(3rem,8vw,8rem);border-color:rgba(255,51,0,0.3);"></div>
+        <div class="geo geo-rect" style="width:clamp(40px,6vw,80px);height:clamp(40px,6vw,80px);top:clamp(3rem,10vh,8rem);right:clamp(6rem,14vw,14rem);background:var(--accent);"></div>
+
+        <div class="section-label reveal">总结</div>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">Agent 评估的核心公式</h2>
+
+        <div class="highlight-box reveal" style="max-width:min(90%,700px);margin-bottom:clamp(0.5rem,1.5vh,1rem);font-size:clamp(0.9rem,1.6vw,1.2rem);">
+            Agent 评估 = 多维度 × 多场景 × 多试验
+        </div>
+
+        <div class="cards-grid cards-grid-3 reveal" style="max-width:min(95%,900px);margin-bottom:clamp(0.5rem,1.5vh,1rem);">
+            <div class="info-card" style="border-left-color:var(--accent);">
+                <h3>多维度</h3>
+                <p>不只看结果，还看过程、沟通、合规</p>
+            </div>
+            <div class="info-card" style="border-left-color:#4ec9b0;">
+                <h3>多场景</h3>
+                <p>覆盖不同难度、不同类型的任务</p>
+            </div>
+            <div class="info-card" style="border-left-color:#dcdcaa;">
+                <h3>多试验</h3>
+                <p>衡量稳定性，而非单次偶然成功</p>
+            </div>
+        </div>
+
+        <p class="reveal" style="max-width:min(90%,700px);font-style:italic;color:#aaa;">
+            乘积组合，而非加权平均。任何一个维度的完全失败都应该导致总分归零。
+        </p>
+
+        <div class="title-meta reveal" style="margin-top:clamp(0.75rem,2vh,1.5rem);">
+            <span style="color:#666;">AgentBoard · AgentBench · &tau;&sup2;-Bench</span>
+        </div>
+    </div>
+    <span class="slide-num">16 / 16</span>
+</section>
+
+<!-- ===========================================
+     JAVASCRIPT: PRESENTATION CONTROLLER
+     =========================================== -->
+<script>
+/* === SLIDE PRESENTATION CONTROLLER === */
+class SlidePresentation {
+    constructor() {
+        this.slides = document.querySelectorAll('.slide');
+        this.currentSlide = 0;
+        this.isScrolling = false;
+        this.setupIntersectionObserver();
+        this.setupKeyboardNav();
+        this.setupTouchNav();
+        this.setupWheelNav();
+        this.setupProgressBar();
+        this.setupNavDots();
+    }
+
+    /* --- Intersection Observer: trigger .visible on scroll --- */
+    setupIntersectionObserver() {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    const idx = parseInt(entry.target.dataset.slide);
+                    if (!isNaN(idx)) {
+                        this.currentSlide = idx;
+                        this.updateProgressBar();
+                        this.updateNavDots();
+                    }
+                }
+            });
+        }, { threshold: 0.4 });
+
+        this.slides.forEach(slide => observer.observe(slide));
+    }
+
+    /* --- Keyboard: arrows, space, page up/down --- */
+    setupKeyboardNav() {
+        document.addEventListener('keydown', (e) => {
+            if (e.target.getAttribute('contenteditable')) return;
+            switch(e.key) {
+                case 'ArrowDown': case 'ArrowRight': case ' ': case 'PageDown':
+                    e.preventDefault(); this.goToSlide(this.currentSlide + 1); break;
+                case 'ArrowUp': case 'ArrowLeft': case 'PageUp':
+                    e.preventDefault(); this.goToSlide(this.currentSlide - 1); break;
+                case 'Home': e.preventDefault(); this.goToSlide(0); break;
+                case 'End': e.preventDefault(); this.goToSlide(this.slides.length - 1); break;
+            }
+        });
+    }
+
+    /* --- Touch/swipe --- */
+    setupTouchNav() {
+        let startY = 0;
+        document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+        document.addEventListener('touchend', (e) => {
+            const diff = startY - e.changedTouches[0].clientY;
+            if (Math.abs(diff) > 50) {
+                diff > 0 ? this.goToSlide(this.currentSlide + 1) : this.goToSlide(this.currentSlide - 1);
+            }
+        }, { passive: true });
+    }
+
+    /* --- Mouse wheel --- */
+    setupWheelNav() {
+        let timeout;
+        document.addEventListener('wheel', (e) => {
+            if (this.isScrolling) return;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                if (e.deltaY > 30) this.goToSlide(this.currentSlide + 1);
+                else if (e.deltaY < -30) this.goToSlide(this.currentSlide - 1);
+            }, 50);
+        }, { passive: true });
+    }
+
+    /* --- Progress bar --- */
+    setupProgressBar() {
+        this.progressBar = document.getElementById('progressBar');
+        this.updateProgressBar();
+    }
+
+    updateProgressBar() {
+        if (!this.progressBar) return;
+        const pct = ((this.currentSlide + 1) / this.slides.length) * 100;
+        this.progressBar.style.width = pct + '%';
+    }
+
+    /* --- Navigation dots --- */
+    setupNavDots() {
+        const nav = document.getElementById('navDots');
+        if (!nav) return;
+        this.slides.forEach((_, i) => {
+            const dot = document.createElement('button');
+            dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+            dot.setAttribute('aria-label', `Slide ${i + 1}`);
+            dot.addEventListener('click', () => this.goToSlide(i));
+            nav.appendChild(dot);
+        });
+        this.dots = nav.querySelectorAll('.nav-dot');
+    }
+
+    updateNavDots() {
+        if (!this.dots) return;
+        this.dots.forEach((dot, i) => dot.classList.toggle('active', i === this.currentSlide));
+    }
+
+    /* --- Navigate to slide --- */
+    goToSlide(index) {
+        if (index < 0 || index >= this.slides.length) return;
+        this.isScrolling = true;
+        this.currentSlide = index;
+        this.slides[index].scrollIntoView({ behavior: 'smooth' });
+        this.updateProgressBar();
+        this.updateNavDots();
+        setTimeout(() => { this.isScrolling = false; }, 800);
+    }
+}
+
+/* === INLINE EDITING === */
+class InlineEditor {
+    constructor() {
+        this.isActive = false;
+        this.editToggle = document.getElementById('editToggle');
+        this.editBanner = document.getElementById('editBanner');
+        this.editableSelectors = 'h1, h2, h3, p, td, li, .highlight-box, .title-subtitle, .section-label';
+        this.storageKey = 'agent-eval-slides-edits';
+        this.loadEdits();
+    }
+
+    toggleEditMode() {
+        this.isActive = !this.isActive;
+        this.editToggle.classList.toggle('active', this.isActive);
+        this.editBanner.classList.toggle('show', this.isActive);
+        this.editToggle.textContent = this.isActive ? 'EXIT' : 'EDIT';
+
+        document.querySelectorAll(this.editableSelectors).forEach(el => {
+            el.contentEditable = this.isActive ? 'true' : 'false';
+        });
+    }
+
+    saveEdits() {
+        const edits = {};
+        document.querySelectorAll('[contenteditable="true"]').forEach((el, i) => {
+            edits[i] = el.innerHTML;
+        });
+        localStorage.setItem(this.storageKey, JSON.stringify(edits));
+    }
+
+    loadEdits() {
+        try {
+            const edits = JSON.parse(localStorage.getItem(this.storageKey));
+            if (!edits) return;
+            document.querySelectorAll(this.editableSelectors).forEach((el, i) => {
+                if (edits[i] !== undefined) el.innerHTML = edits[i];
+            });
+        } catch(e) { /* ignore */ }
+    }
+}
+
+/* === INIT === */
+const presentation = new SlidePresentation();
+const editor = new InlineEditor();
+
+/* Hotzone hover with 400ms grace period */
+const hotzone = document.getElementById('editHotzone');
+const editToggle = document.getElementById('editToggle');
+let hideTimeout = null;
+
+hotzone.addEventListener('mouseenter', () => {
+    clearTimeout(hideTimeout);
+    editToggle.classList.add('show');
+});
+hotzone.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => {
+        if (!editor.isActive) editToggle.classList.remove('show');
+    }, 400);
+});
+editToggle.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); });
+editToggle.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => {
+        if (!editor.isActive) editToggle.classList.remove('show');
+    }, 400);
+});
+
+/* Click handlers */
+editToggle.addEventListener('click', () => editor.toggleEditMode());
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+
+/* Keyboard: E to toggle edit, Ctrl+S to save */
+document.addEventListener('keydown', (e) => {
+    if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) {
+        editor.toggleEditMode();
+    }
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        editor.saveEdits();
+        const banner = document.getElementById('editBanner');
+        const orig = banner.textContent;
+        banner.textContent = 'SAVED!';
+        banner.classList.add('show');
+        setTimeout(() => { banner.textContent = orig; if (!editor.isActive) banner.classList.remove('show'); }, 1500);
+    }
+});
+</script>
+
+</body>
+</html>
