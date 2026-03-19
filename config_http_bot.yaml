@@ -1,8 +1,9 @@
 agent:
   adapter: http_bot
-  bot_url: http://localhost:8100/chat
+  bot_url: http://127.0.0.1:8000/chat
   message_field: message
   reply_field: reply
+  timeout: 60
 
 environment:
   type: passthrough

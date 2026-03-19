@@ -16,23 +16,63 @@ class MockBotHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers["Content-Length"])
         body = json.loads(self.rfile.read(length))
-        reply = f"Echo: {body['message']}"
+        reply = f"Echo: {body.get('message', '')}"
+        resp = {"reply": reply}
+        # Echo back conversation_id if present
+        if "conversation_id" in body:
+            resp["conversation_id"] = body["conversation_id"]
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(resp).encode())
+
+    def log_message(self, format, *args):
+        pass  # suppress logs
+
+
+class MockHistoryHandler(BaseHTTPRequestHandler):
+    """Accepts messages array, replies with message count."""
+    def do_POST(self):
+        length = int(self.headers["Content-Length"])
+        body = json.loads(self.rfile.read(length))
+        messages = body.get("messages", [])
+        user_msgs = [m for m in messages if m.get("role") == "user"]
+        reply = f"Got {len(messages)} messages, {len(user_msgs)} from user"
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps({"reply": reply}).encode())
 
     def log_message(self, format, *args):
-        pass  # suppress logs
+        pass
 
 
-def test_http_bot_adapter():
-    # Start mock server
-    server = HTTPServer(("127.0.0.1", 18932), MockBotHandler)
+class MockNestedReplyHandler(BaseHTTPRequestHandler):
+    """Returns nested response like {"data": {"reply": "..."}}."""
+    def do_POST(self):
+        length = int(self.headers["Content-Length"])
+        body = json.loads(self.rfile.read(length))
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        resp = {"data": {"reply": f"Nested: {body.get('message', '')}"}}
+        self.wfile.write(json.dumps(resp).encode())
+
+    def log_message(self, format, *args):
+        pass
+
+
+def _start_server(handler_class, port):
+    server = HTTPServer(("127.0.0.1", port), handler_class)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     time.sleep(0.3)
+    return server
 
+
+def test_http_bot_adapter():
+    """Basic test: last mode (default), sends only last user message."""
+    server = _start_server(MockBotHandler, 18932)
     try:
         adapter = HttpBotAdapter(
             bot_url="http://127.0.0.1:18932/chat",
@@ -50,10 +90,112 @@ def test_http_bot_adapter():
         assert result.role == Role.AGENT
         assert "Echo: Hello world" in result.content
         assert result.tool_calls is None
-        print("  HttpBotAdapter: PASSED")
+        print("  test_http_bot_adapter (last mode): PASSED")
     finally:
         server.shutdown()
 
 
+def test_http_bot_session_mode():
+    """Session mode: sends conversation_id with each request."""
+    server = _start_server(MockBotHandler, 18933)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18933/chat",
+            history_mode="session",
+            session_field="conversation_id",
+        )
+        adapter.reset()
+        assert adapter.conversation_id is not None
+
+        messages = [
+            Message(role=Role.SYSTEM, content="System."),
+            Message(role=Role.USER, content="Hi"),
+        ]
+        result = adapter.act(messages)
+        assert "Echo: Hi" in result.content
+        print("  test_http_bot_session_mode: PASSED")
+    finally:
+        server.shutdown()
+
+
+def test_http_bot_history_mode():
+    """History mode: sends full conversation as messages array."""
+    server = _start_server(MockHistoryHandler, 18934)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18934/chat",
+            history_mode="history",
+            message_field="messages",
+            reply_field="reply",
+        )
+        adapter.reset()
+
+        messages = [
+            Message(role=Role.SYSTEM, content="System prompt."),
+            Message(role=Role.USER, content="First question"),
+            Message(role=Role.AGENT, content="First answer"),
+            Message(role=Role.USER, content="Second question"),
+        ]
+        result = adapter.act(messages)
+
+        assert "Got 4 messages" in result.content
+        assert "2 from user" in result.content
+        print("  test_http_bot_history_mode: PASSED")
+    finally:
+        server.shutdown()
+
+
+def test_http_bot_nested_reply():
+    """Nested reply field: supports dot-separated paths like 'data.reply'."""
+    server = _start_server(MockNestedReplyHandler, 18935)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18935/chat",
+            reply_field="data.reply",
+        )
+        adapter.reset()
+
+        messages = [Message(role=Role.USER, content="Test")]
+        result = adapter.act(messages)
+
+        assert "Nested: Test" in result.content
+        print("  test_http_bot_nested_reply: PASSED")
+    finally:
+        server.shutdown()
+
+
+def test_http_bot_reset_new_session():
+    """Each reset() generates a new conversation_id."""
+    adapter = HttpBotAdapter(bot_url="http://localhost:9999", history_mode="session")
+    adapter.reset()
+    id1 = adapter.conversation_id
+    adapter.reset()
+    id2 = adapter.conversation_id
+    assert id1 != id2
+    assert id1 is not None and id2 is not None
+    print("  test_http_bot_reset_new_session: PASSED")
+
+
+def test_http_bot_extra_body():
+    """extra_body fields are included in payload."""
+    adapter = HttpBotAdapter(
+        bot_url="http://localhost:9999",
+        extra_body={"api_key": "test123", "model": "gpt-4"},
+    )
+    adapter.reset()
+    messages = [Message(role=Role.USER, content="Hi")]
+    payload = adapter._build_payload(messages)
+    assert payload["api_key"] == "test123"
+    assert payload["model"] == "gpt-4"
+    assert payload["message"] == "Hi"
+    print("  test_http_bot_extra_body: PASSED")
+
+
 if __name__ == "__main__":
     test_http_bot_adapter()
+    test_http_bot_session_mode()
+    test_http_bot_history_mode()
+    test_http_bot_nested_reply()
+    test_http_bot_reset_new_session()
+    test_http_bot_extra_body()
+    print("\nAll http_bot tests passed!")
