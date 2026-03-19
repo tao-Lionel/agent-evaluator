@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Agent Evaluator 是一个可插件化的 AI Agent 评估框架，驱动 Agent ↔ Environment 交互循环，并从多个维度对 Agent 的表现进行评分。当前已完成 Step 1（核心骨架）、Step 2（多轮对话）和 Step 3 大部分（高级指标+报告+HTTP Bot 评估）。
+Agent Evaluator 是一个可插件化的 AI Agent 评估框架，驱动 Agent ↔ Environment 交互循环，并从多个维度对 Agent 的表现进行评分。当前已完成 Step 1（核心骨架）、Step 2（多轮对话）、Step 3（高级指标+报告+HTTP Bot 评估）和 Step 4（eval_bot 飞书 Bot + LLM 智能编排）。
 
 ## 常用命令
 
@@ -27,6 +27,10 @@ python tests/test_multi_turn.py
 python tests/test_llm_judge.py
 python tests/test_passthrough.py
 python tests/test_http_bot.py
+python -m pytest tests/test_eval_bot_*.py  # eval_bot 专项测试
+
+# 启动飞书评测 Bot（需要设置 FEISHU_* 环境变量）
+uvicorn eval_bot.feishu:app --port 8102
 ```
 
 ## 架构
@@ -62,6 +66,12 @@ python tests/test_http_bot.py
   - `scripted` — 关键词/默认分支脚本化用户
   - `llm` — LLM 角色扮演用户（persona + goal 驱动）
 - **报告**：`report.py` — 自包含 HTML 报告，深色主题，支持中英双语，含轨迹可视化
+- **eval_bot**（`eval_bot/`）：飞书 Bot + LLM 智能编排，三个功能：
+  - `quick_eval` — 对 HTTP Bot 发起快速评测（异步，结果推回飞书）
+  - `query_results` — 查询历史评测结果（LLM 回答）
+  - `gen_scenarios` — 为指定业务领域生成测试场景
+  - `Dispatcher` — 用智谱 function calling 识别意图，路由到对应 command
+  - `TaskRunner` — 线程池异步执行，支持完成回调
 
 ### 三种评估模式
 
@@ -82,7 +92,8 @@ environments/   — 环境实现（mock_db, passthrough）
 evaluators/     — 评估器（state_match, action_match, info_delivery, llm_judge, nl_assertion）
 users/          — 用户模拟器（scripted, llm）
 scenarios/      — 任务场景 JSON（sample_tasks, multi_turn_tasks, http_bot_tasks）
-tests/          — 单元测试（test_core, test_multi_turn, test_llm_judge, test_passthrough, test_http_bot）
+eval_bot/       — 飞书评测 Bot（dispatcher, runner, feishu webhook, commands/）
+tests/          — 单元测试（test_core, test_multi_turn, test_llm_judge, test_passthrough, test_http_bot, test_eval_bot_*）
 docs/           — 文档（roadmap, plans/, research/）
 test_bot/       — 测试用 HTTP Bot（FastAPI 服务 + 飞书集成）
 results/        — 评估结果输出（JSON + HTML 报告）
@@ -117,4 +128,6 @@ openai>=1.0.0        # OpenAI SDK（智谱兼容）
 pyyaml>=6.0          # 配置解析
 python-dotenv>=1.0.0 # .env 支持
 httpx>=0.24.0        # HTTP 请求（http_bot 适配器）
+fastapi>=0.100.0     # eval_bot Webhook 服务
+uvicorn>=0.20.0      # eval_bot ASGI 服务器
 ```
