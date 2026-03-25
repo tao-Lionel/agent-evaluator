@@ -39,7 +39,11 @@ class InfoDeliveryEvaluator(Evaluator):
     Uses fuzzy matching: normalizes punctuation/whitespace before comparison.
     """
 
+    def __init__(self, **kwargs):
+        self.last_reason: str = ""
+
     def evaluate(self, task: Task, trajectory: list[Message], env: Environment) -> float:
+        self.last_reason = ""
         if not task.required_info:
             return 1.0
 
@@ -51,13 +55,16 @@ class InfoDeliveryEvaluator(Evaluator):
         )
 
         matched = 0
+        lines = []
         for info in task.required_info:
             if _fuzzy_contains(agent_text, info):
                 matched += 1
-                logger.debug("InfoDelivery: found '%s'", info)
+                lines.append(f"[PASS] \"{info}\" — 在回复中找到匹配")
             else:
-                logger.debug("InfoDelivery: missing '%s'", info)
+                lines.append(f"[FAIL] \"{info}\" — 回复中未找到")
 
         score = matched / len(task.required_info)
+        lines.append(f"匹配: {matched}/{len(task.required_info)}")
+        self.last_reason = "\n".join(lines)
         logger.debug("InfoDelivery: %d/%d matched", matched, len(task.required_info))
         return score
