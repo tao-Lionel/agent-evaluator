@@ -146,10 +146,12 @@ class Orchestrator:
             except Exception as e:
                 logger.error("Evaluator '%s' failed: %s", name, e)
                 scores[name] = 0.0
-            # Collect reasoning from LLM-based evaluators
+            # Collect reasoning from evaluators
             reason = getattr(evaluator, "last_reason", "")
             if reason:
-                score_details[name] = reason
+                model = getattr(evaluator, "model", "")
+                prefix = f"[评判模型: {model}]\n" if model else ""
+                score_details[name] = prefix + reason
 
         overall = 1.0
         for s in scores.values():
