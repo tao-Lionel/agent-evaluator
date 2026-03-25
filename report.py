@@ -333,41 +333,65 @@ def _render_task_card(result: dict, eval_names: list[str], t: dict) -> str:
     </div>"""
 
 
+_MSG_COLLAPSE_THRESHOLD = 300  # chars before collapsing
+
+
+def _render_long_content(content: str, role_class: str, role_label: str, use_code: bool = False) -> str:
+    """Render message content, collapsible if long, with copy button."""
+    escaped = escape(content)
+    length = len(content)
+
+    if length <= _MSG_COLLAPSE_THRESHOLD:
+        tag = "code" if use_code else "span"
+        return (
+            f'<div class="msg {role_class}"><span class="role">{role_label}</span>'
+            f'<{tag}>{escaped}</{tag}></div>\n'
+        )
+
+    # Long content: show preview + expandable full content
+    preview = escape(content[:200] + "...")
+    msg_id = f"msg-{id(content) % 100000}"
+    tag = "code" if use_code else "span"
+    return (
+        f'<div class="msg {role_class}">'
+        f'<span class="role">{role_label}</span>'
+        f'<span class="msg-meta">{length} chars</span>'
+        f'<button class="copy-btn" onclick="navigator.clipboard.writeText('
+        f'document.getElementById(\'{msg_id}-full\').textContent)">Copy</button>'
+        f'<{tag} class="msg-preview" id="{msg_id}-preview">{preview}</{tag}>'
+        f'<{tag} class="msg-full" id="{msg_id}-full" style="display:none">{escaped}</{tag}>'
+        f'<button class="expand-btn" onclick="toggleMsg(\'{msg_id}\')">Expand</button>'
+        f'</div>\n'
+    )
+
+
 def _render_trajectory(trajectory: list[dict]) -> str:
     html = ""
     for msg in trajectory:
         role = msg.get("role", "unknown")
         content = msg.get("content", "")
         if not isinstance(content, str):
-            content = json.dumps(content, ensure_ascii=False) if content else ""
+            content = json.dumps(content, ensure_ascii=False, indent=2) if content else ""
         tool_calls = msg.get("tool_calls", [])
         tool_results = msg.get("tool_results", [])
 
         if role == "system":
-            html += f'<div class="msg msg-system"><span class="role">SYSTEM</span>{escape(content)}</div>\n'
+            html += _render_long_content(content, "msg-system", "SYSTEM")
         elif role == "user":
-            html += f'<div class="msg msg-user"><span class="role">USER</span>{escape(content or "")}</div>\n'
+            html += _render_long_content(content or "", "msg-user", "USER")
         elif role == "agent":
             if content:
-                text = content if len(content) <= 500 else content[:500] + "..."
-                html += f'<div class="msg msg-agent"><span class="role">AGENT</span>{escape(text)}</div>\n'
+                html += _render_long_content(content, "msg-agent", "AGENT")
             for tc in tool_calls:
-                args = json.dumps(tc.get("arguments", {}), ensure_ascii=False)
-                html += (
-                    f'<div class="msg msg-tool-call"><span class="role">TOOL CALL</span>'
-                    f'<code>{escape(tc.get("name", ""))}({escape(args)})</code></div>\n'
-                )
+                args = json.dumps(tc.get("arguments", {}), ensure_ascii=False, indent=2)
+                call_text = f'{tc.get("name", "")}({args})'
+                html += _render_long_content(call_text, "msg-tool-call", "TOOL CALL", use_code=True)
         elif role == "env":
             for tr in tool_results:
                 output = tr.get("output", "")
-                if len(output) > 300:
-                    output = output[:300] + "..."
                 is_err = tr.get("error", False)
                 cls = "msg-env-error" if is_err else "msg-env"
-                html += (
-                    f'<div class="msg {cls}"><span class="role">ENV</span>'
-                    f'<code>{escape(output)}</code></div>\n'
-                )
+                html += _render_long_content(output, cls, "ENV", use_code=True)
     return html
 
 
@@ -453,10 +477,16 @@ h1 {{ font-size: 1.5rem; margin-bottom: 4px; }}
 /* Trajectory */
 .trajectory-details {{ margin-top: 12px; }}
 .trajectory-details summary {{ cursor: pointer; color: var(--blue); font-size: 0.9rem; }}
-.trajectory {{ margin-top: 8px; max-height: 600px; overflow-y: auto;
+.trajectory {{ margin-top: 8px; max-height: none; overflow-y: visible;
   border: 1px solid var(--border); border-radius: 6px; padding: 12px; }}
 .msg {{ padding: 8px 12px; margin-bottom: 6px; border-radius: 6px; font-size: 0.85rem;
-  white-space: pre-wrap; word-break: break-word; }}
+  white-space: pre-wrap; word-break: break-word; position: relative; }}
+.msg-meta {{ font-size: 0.7rem; color: var(--text2); margin-left: 8px; }}
+.msg-full {{ display: none; }}
+.expand-btn, .copy-btn {{ background: var(--border); color: var(--text2); border: none;
+  border-radius: 3px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer;
+  margin-left: 6px; vertical-align: middle; }}
+.expand-btn:hover, .copy-btn:hover {{ background: var(--accent); color: var(--text); }}
 .role {{ display: inline-block; font-weight: 700; font-size: 0.75rem; margin-right: 8px;
   padding: 1px 6px; border-radius: 3px; }}
 .msg-system {{ background: rgba(88,166,255,0.08); }}
@@ -527,6 +557,22 @@ h1 {{ font-size: 1.5rem; margin-bottom: 4px; }}
 <p style="color:var(--text2);font-size:0.8rem;margin-top:24px;text-align:center">
   {footer}
 </p>
+<script>
+function toggleMsg(id) {{
+  var preview = document.getElementById(id + '-preview');
+  var full = document.getElementById(id + '-full');
+  var btn = event.target;
+  if (full.style.display === 'none') {{
+    full.style.display = 'inline';
+    preview.style.display = 'none';
+    btn.textContent = 'Collapse';
+  }} else {{
+    full.style.display = 'none';
+    preview.style.display = 'inline';
+    btn.textContent = 'Expand';
+  }}
+}}
+</script>
 </body>
 </html>"""
 
