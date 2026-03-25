@@ -108,16 +108,27 @@ class HttpBotAdapter(AgentAdapter):
         return payload
 
     def _render_template(self, messages: list[Message]) -> dict:
-        """Render request_template by substituting ${variable} placeholders."""
+        """Render request_template by substituting ${variable} placeholders.
+
+        If the last user message is already a dict (structured request body from
+        scenario JSON), use it directly as the payload — this allows per-scenario
+        customization of all request fields.
+        """
+        last_msg = self._extract_last_user_content(messages)
+
+        # If user message is a dict, use it directly as request body
+        if isinstance(last_msg, dict):
+            return last_msg
+
+        # Otherwise, do template variable substitution
         variables = {
-            "initial_message": self._extract_last_user_message(messages),
+            "initial_message": last_msg if isinstance(last_msg, str) else str(last_msg),
             "description": self._extract_system_description(messages),
             "task_id": "",
         }
 
         def substitute(value: Any) -> Any:
             if isinstance(value, str):
-                # Replace ${var} patterns
                 def replacer(match: re.Match) -> str:
                     var_name = match.group(1)
                     return variables.get(var_name, match.group(0))
@@ -182,10 +193,19 @@ class HttpBotAdapter(AgentAdapter):
         return str(current) if current else ""
 
     @staticmethod
-    def _extract_last_user_message(messages: list[Message]) -> str:
+    def _extract_last_user_content(messages: list[Message]) -> Any:
+        """Extract the last user message content, preserving type (str or dict)."""
         for msg in reversed(messages):
             if msg.role == Role.USER and msg.content:
                 return msg.content
+        return ""
+
+    @staticmethod
+    def _extract_last_user_message(messages: list[Message]) -> str:
+        for msg in reversed(messages):
+            if msg.role == Role.USER and msg.content:
+                content = msg.content
+                return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
         return ""
 
     @staticmethod

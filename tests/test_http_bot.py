@@ -311,6 +311,38 @@ def test_reply_field_extracts_nested_json():
         server.shutdown()
 
 
+def test_request_template_dict_message():
+    """When user message content is a dict, use it directly as request body."""
+    server = _start_server(MockTemplateHandler, 18939)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18939/api/generate",
+            request_template={
+                "topic": "${initial_message}",
+                "page_count": 10,
+            },
+            reply_field=".",
+        )
+        adapter.reset()
+
+        # Simulate what happens when initial_message is a dict in scenario JSON
+        messages = [
+            Message(role=Role.SYSTEM, content="System"),
+            Message(role=Role.USER, content={"topic": "AI趋势", "page_count": 20, "theme": "dark"}),
+        ]
+        result = adapter.act(messages)
+
+        data = json.loads(result.content)
+        received = data["received"]
+        # Dict message should be used directly, NOT template-substituted
+        assert received["topic"] == "AI趋势"
+        assert received["page_count"] == 20     # from dict, not template's 10
+        assert received["theme"] == "dark"       # extra field from dict
+        print("  test_request_template_dict_message: PASSED")
+    finally:
+        server.shutdown()
+
+
 def test_backward_compatibility():
     """Without request_template, behaves exactly like before."""
     adapter = HttpBotAdapter(
@@ -339,5 +371,6 @@ if __name__ == "__main__":
     test_request_template_nested()
     test_reply_field_dot()
     test_reply_field_extracts_nested_json()
+    test_request_template_dict_message()
     test_backward_compatibility()
     print("\nAll http_bot tests passed!")

@@ -30,7 +30,7 @@ class ToolResult:
 @dataclass
 class Message:
     role: Role
-    content: str | None = None
+    content: Any = None  # str, dict (structured request), or None
     tool_calls: list[ToolCall] | None = None
     tool_results: list[ToolResult] | None = None
 
@@ -46,7 +46,7 @@ class Message:
 class Task:
     id: str
     description: str
-    initial_message: str
+    initial_message: Any  # str or dict (structured request body)
     initial_state: dict[str, Any]
     max_steps: int = 20
     expected_actions: list[dict[str, Any]] = field(default_factory=list)
