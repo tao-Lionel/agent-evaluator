@@ -26,7 +26,9 @@ or insufficient information to make a judgment), respond with "SCORE: INSUFFICIE
 instead of guessing.
 
 Respond with your reasoning first, then end with exactly "SCORE: N" where N is 1-5, \
-or "SCORE: INSUFFICIENT_INFO" if you cannot judge."""
+or "SCORE: INSUFFICIENT_INFO" if you cannot judge.
+
+IMPORTANT: Always respond in Chinese (中文)."""
 
 JUDGE_USER_TEMPLATE = """\
 ## Task Description

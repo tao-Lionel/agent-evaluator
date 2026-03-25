@@ -18,10 +18,10 @@ and a list of assertions to check. For each assertion, determine if it PASSES \
 or FAILS based on the actual data.
 
 Respond with one line per assertion in this exact format:
-[PASS] assertion text - brief reason
-[FAIL] assertion text - brief reason
+[PASS] assertion text - brief reason in Chinese
+[FAIL] assertion text - brief reason in Chinese
 
-Nothing else."""
+Always respond in Chinese (中文). Nothing else."""
 
 JUDGE_SYSTEM_PROMPT_RESPONSE = """\
 You are an AI response verifier. You will receive an agent's response content \
@@ -29,10 +29,10 @@ and a list of assertions to check. For each assertion, determine if it PASSES \
 or FAILS based on the actual response.
 
 Respond with one line per assertion in this exact format:
-[PASS] assertion text - brief reason
-[FAIL] assertion text - brief reason
+[PASS] assertion text - brief reason in Chinese
+[FAIL] assertion text - brief reason in Chinese
 
-Nothing else."""
+Always respond in Chinese (中文). Nothing else."""
 
 JUDGE_USER_TEMPLATE_DB = """\
 ## Current Database State
