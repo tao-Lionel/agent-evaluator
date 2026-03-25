@@ -50,25 +50,26 @@ uvicorn eval_bot.feishu:app --port 8102
 
 ### 当前实现
 
-- **适配器**（2 个）：
+- **适配器**（3 个）：
   - `openai_fc` — OpenAI 兼容函数调用 API（支持智谱等）
   - `http_bot` — 通用 HTTP API 适配，支持 `request_template` 配置驱动（无需写代码）、`reply_field: "."` 整体响应提取、三种历史模式（last/history/session）、重试机制、嵌套 JSON 路径解析
+  - `ws_bot` — WebSocket 适配器，支持流式响应收集、工具调用事件捕获、`timeout`（单条消息超时）/ `total_timeout`（整轮总超时）配置、实时进度回调
 - **环境**（2 个）：
   - `mock_db` — 内存 CRUD 数据库（query/update/insert/delete/done）
   - `passthrough` — 透传环境，用于黑盒 Agent 评估（无工具、无状态变更）
 - **评估器**（5 个）：
   - `state_match` — DB 状态比对（MD5 精确匹配 + 子集匹配 fallback）
   - `action_match` — 工具调用部分参数匹配
-  - `info_delivery` — Agent 回复子串检查（模糊匹配）
-  - `llm_judge` — LLM 回复质量评分（1-5 分，适用于黑盒 Agent，支持 INSUFFICIENT_INFO 逃生门）
-  - `nl_assertion` — 自然语言断言评估（LLM-as-Judge 逐条判 PASS/FAIL）
+  - `info_delivery` — Agent 回复子串检查（模糊匹配），支持评判详情输出
+  - `llm_judge` — LLM 回复质量评分（1-5 分，适用于黑盒 Agent，支持 INSUFFICIENT_INFO 逃生门），支持配置 model/temperature/max_tokens
+  - `nl_assertion` — 自然语言断言评估（LLM-as-Judge 逐条判 PASS/FAIL），支持配置 model/temperature/max_tokens
 - **指标与校准**（`core/`）：
   - `metrics.py` — Pass@k / Pass^k 一致性指标、饱和度警告
   - `calibration.py` — Grader 校准框架（LLM vs 人工评分一致性）
 - **用户模拟器**（2 个）：
   - `scripted` — 关键词/默认分支脚本化用户
   - `llm` — LLM 角色扮演用户（persona + goal 驱动）
-- **报告**：`report.py` — 自包含 HTML 报告，深色主题，支持中英双语，含轨迹可视化、能力雷达图、一致性指标表、饱和度警告
+- **报告**：`report.py` — 自包含 HTML 报告，深色主题，支持中英双语，含轨迹可视化、能力雷达图、一致性指标表、饱和度警告、LLM 评判详情展开查看
 - **eval_bot**（`eval_bot/`）：飞书 Bot + LLM 智能编排，三个功能：
   - `quick_eval` — 对 HTTP Bot 发起快速评测（异步，结果推回飞书）
   - `query_results` — 查询历史评测结果（LLM 回答）
@@ -76,13 +77,14 @@ uvicorn eval_bot.feishu:app --port 8102
   - `Dispatcher` — 用智谱 function calling 识别意图，路由到对应 command
   - `TaskRunner` — 线程池异步执行，支持完成回调
 
-### 三种评估模式
+### 评估模式
 
 1. **工具调用 Agent**（`config.yaml`）：openai_fc + mock_db → state_match, action_match, info_delivery
 2. **多轮对话 Agent**（`config_multi_turn.yaml`）：openai_fc + mock_db + scripted user → 加 nl_assertion
 3. **黑盒 HTTP Agent**（`config_http_bot.yaml`）：http_bot + passthrough → info_delivery, llm_judge
 4. **反例测试**（`config_negative.yaml`）：openai_fc + mock_db → state_match, action_match, info_delivery, nl_assertion
 5. **通用 HTTP Agent**（`config_template.yaml`）：http_bot（request_template 配置驱动）+ passthrough → 按需组合评估器
+6. **WebSocket Agent**（`config_ws_agent.yaml`）：ws_bot + passthrough → llm_judge, nl_assertion, info_delivery
 
 ## 新增组件
 
@@ -92,11 +94,11 @@ uvicorn eval_bot.feishu:app --port 8102
 
 ```
 core/           — 核心引擎（types, base, registry, orchestrator, metrics, calibration）
-adapters/       — Agent 适配器（openai_fc, http_bot）
+adapters/       — Agent 适配器（openai_fc, http_bot, ws_bot）
 environments/   — 环境实现（mock_db, passthrough）
 evaluators/     — 评估器（state_match, action_match, info_delivery, llm_judge, nl_assertion）
 users/          — 用户模拟器（scripted, llm）
-scenarios/      — 任务场景 JSON（sample_tasks, multi_turn_tasks, http_bot_tasks）
+scenarios/      — 任务场景 JSON（sample_tasks, multi_turn_tasks, http_bot_tasks, ws_agent_tasks）
 eval_bot/       — 飞书评测 Bot（dispatcher, runner, feishu webhook, commands/）
 tests/          — 单元测试（test_core, test_multi_turn, test_llm_judge, test_passthrough, test_http_bot, test_eval_bot_*）
 docs/           — 文档（roadmap, plans/, research/）
@@ -108,10 +110,11 @@ results/        — 评估结果输出（JSON + HTML 报告）
 
 `config.yaml` 支持 `${ENV_VAR}` 环境变量展开（不支持 `:-default` 语法）。主要配置段：
 
-- `agent` — adapter, model, api_key, base_url, temperature；http_bot 额外支持 url, request_template（配置驱动请求模板）, reply_field（支持 "." 整体提取）, history_mode, max_retries, retry_delay
+- `name`（可选）— 评估名称，用于结果文件名和报告标题区分不同 Agent
+- `agent` — adapter, model, api_key, base_url, temperature；http_bot 额外支持 url, request_template, reply_field, history_mode, max_retries, retry_delay；ws_bot 支持 ws_url, timeout, total_timeout
 - `environment` — type
-- `user`（可选）— type + 参数（scripted 或 llm）
-- `evaluators` — 评估器名称列表
+- `user`（可选）— type + 参数（scripted 或 llm），llm 用户支持 model, temperature, max_tokens
+- `evaluators` — 评估器列表，支持简写（名称字符串）或详细配置（name + model/temperature/max_tokens/api_key/base_url）
 - `scenarios` — 任务 JSON 路径
 - `run` — num_trials, log_level
 
@@ -119,11 +122,12 @@ results/        — 评估结果输出（JSON + HTML 报告）
 
 任务定义在 JSON 数组中。每个任务包含：`id`、`description`、`initial_message`、`initial_state`（DB 表数据）、`expected_actions`（含 `match_args` 用于部分匹配）、`expected_state`（用于子集匹配 fallback）、`required_info`、`difficulty`、`max_steps`、`nl_assertions`（可选，自然语言断言列表）、`user_scenario`（可选，含 `persona`、`goal`、`script` 用于多轮对话）、`single_turn`（可选，用于黑盒 Agent）。
 
-当前有四套场景：
+当前有五套场景：
 - `scenarios/sample_tasks.json` — 5 个单轮任务（easy/medium/hard）
 - `scenarios/multi_turn_tasks.json` — 3 个多轮对话任务
 - `scenarios/http_bot_tasks.json` — 5 个 HTTP Bot 评估任务
 - `scenarios/negative_tasks.json` — 5 个反例场景（越权、信息不足、批量删除、不存在资源、业务规则）
+- `scenarios/ws_agent_tasks.json` — 5 个 WebSocket Agent 评估任务
 
 所有场景和系统提示词均为中文。
 
@@ -134,6 +138,7 @@ openai>=1.0.0        # OpenAI SDK（智谱兼容）
 pyyaml>=6.0          # 配置解析
 python-dotenv>=1.0.0 # .env 支持
 httpx>=0.24.0        # HTTP 请求（http_bot 适配器）
+websockets>=12.0     # WebSocket 连接（ws_bot 适配器）
 fastapi>=0.100.0     # eval_bot Webhook 服务
 uvicorn>=0.20.0      # eval_bot ASGI 服务器
 ```
