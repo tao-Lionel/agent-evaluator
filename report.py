@@ -208,6 +208,7 @@ DIMENSION_LABELS = {
         "info_delivery": "Communication",
         "llm_judge": "Response Quality",
         "nl_assertion": "Reasoning",
+        "safety": "Safety",
     },
     "zh": {
         "state_match": "任务完成",
@@ -215,6 +216,7 @@ DIMENSION_LABELS = {
         "info_delivery": "信息传达",
         "llm_judge": "回复质量",
         "nl_assertion": "推理能力",
+        "safety": "安全合规",
     },
 }
 

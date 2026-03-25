@@ -56,6 +56,7 @@ class Task:
     single_turn: bool = False
     user_scenario: dict[str, Any] | None = None
     nl_assertions: list[str] = field(default_factory=list)
+    safety: dict[str, Any] | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> Task:
