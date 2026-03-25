@@ -410,110 +410,158 @@ HTML_TEMPLATE = """\
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {{
-  --bg: #0d1117; --surface: #161b22; --border: #30363d;
-  --text: #e6edf3; --text2: #8b949e; --green: #3fb950;
-  --red: #f85149; --yellow: #d29922; --blue: #58a6ff;
-  --accent: #1f6feb;
+  --bg: #0b0f14; --surface: #141a22; --surface2: #1a2230;
+  --border: #252e3b; --border2: #2d3848;
+  --text: #e2e8f0; --text2: #7a8ba0; --text3: #4a5568;
+  --green: #34d399; --red: #f87171; --yellow: #fbbf24; --blue: #60a5fa;
+  --accent: #3b82f6; --accent2: #2563eb;
+  --radius: 10px;
 }}
+@keyframes fillBar {{ from {{ width: 0; }} }}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  background: var(--bg); color: var(--text); padding: 24px; line-height: 1.5; }}
-h1 {{ font-size: 1.5rem; margin-bottom: 4px; }}
-.source {{ color: var(--text2); font-size: 0.85rem; margin-bottom: 24px; }}
+body {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6; }}
+.container {{ max-width: 920px; margin: 0 auto; padding: 40px 24px; }}
+code, .mono {{ font-family: 'JetBrains Mono', monospace; font-size: 0.82em; }}
+
+/* Header */
+.header {{ margin-bottom: 36px; }}
+.header h1 {{ font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; }}
+.source {{ color: var(--text3); font-size: 0.8rem; }}
 
 /* Dashboard */
-.dashboard {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px; margin-bottom: 32px; }}
+.dashboard {{ display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 32px; }}
 .stat-card {{ background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px; text-align: center; }}
-.stat-value {{ font-size: 2rem; font-weight: 700; }}
+  border-radius: var(--radius); padding: 20px; text-align: center;
+  transition: border-color 0.2s; }}
+.stat-card:hover {{ border-color: var(--border2); }}
+.stat-value {{ font-size: 2.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }}
 .stat-value.green {{ color: var(--green); }}
 .stat-value.red {{ color: var(--red); }}
 .stat-value.blue {{ color: var(--blue); }}
-.stat-label {{ color: var(--text2); font-size: 0.85rem; }}
+.stat-label {{ color: var(--text2); font-size: 0.8rem; margin-top: 4px; }}
+
+/* Sections */
+.section {{ background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }}
+.section h2 {{ font-size: 1.05rem; font-weight: 600; margin-bottom: 16px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border); }}
 
 /* Evaluator bars */
 .eval-section {{ background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 20px; margin-bottom: 32px; }}
-.eval-section h2 {{ font-size: 1.1rem; margin-bottom: 12px; }}
-.eval-bar-row {{ display: flex; align-items: center; margin-bottom: 8px; }}
-.eval-bar-label {{ width: 140px; font-size: 0.85rem; color: var(--text2); }}
-.eval-bar-track {{ flex: 1; height: 24px; background: var(--border); border-radius: 4px; overflow: hidden; }}
-.eval-bar-fill {{ height: 100%; background: var(--accent); border-radius: 4px;
-  display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
-  font-size: 0.8rem; font-weight: 600; min-width: 40px; }}
-.diff-table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
-.diff-table th, .diff-table td {{ padding: 6px 12px; text-align: left;
-  border-bottom: 1px solid var(--border); font-size: 0.9rem; }}
-.diff-table th {{ color: var(--text2); }}
+  border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }}
+.eval-section h2 {{ font-size: 1.05rem; font-weight: 600; margin-bottom: 16px;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border); }}
+.eval-bar-row {{ display: flex; align-items: center; margin-bottom: 10px; }}
+.eval-bar-label {{ width: 140px; font-size: 0.82rem; color: var(--text2); font-family: 'JetBrains Mono', monospace; }}
+.eval-bar-track {{ flex: 1; height: 28px; background: var(--surface2); border-radius: 6px; overflow: hidden; }}
+.eval-bar-fill {{ height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius: 6px; display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 10px; font-size: 0.78rem; font-weight: 600; min-width: 44px;
+  animation: fillBar 0.8s ease-out; }}
+.diff-table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+.diff-table th, .diff-table td {{ padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--border); font-size: 0.85rem; }}
+.diff-table th {{ color: var(--text2); font-weight: 500; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.05em; }}
 
 /* Task cards */
 .task-card {{ background: var(--surface); border: 1px solid var(--border);
-  border-radius: 8px; padding: 16px; margin-bottom: 16px; }}
+  border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s; }}
+.task-card:hover {{ border-color: var(--border2);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2); }}
 .task-card.pass {{ border-left: 3px solid var(--green); }}
 .task-card.fail {{ border-left: 3px solid var(--red); }}
-.task-header {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }}
-.task-status {{ font-weight: 700; font-size: 0.8rem; padding: 2px 8px; border-radius: 4px; }}
-.task-status.pass {{ background: rgba(63,185,80,0.15); color: var(--green); }}
-.task-status.fail {{ background: rgba(248,81,73,0.15); color: var(--red); }}
-.task-id {{ font-weight: 600; }}
-.task-diff {{ background: var(--border); padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }}
-.task-meta {{ color: var(--text2); font-size: 0.85rem; margin-left: auto; }}
-.task-overall {{ font-weight: 700; font-size: 1.1rem; }}
-.task-desc {{ color: var(--text2); font-size: 0.9rem; margin-bottom: 12px; }}
+.task-header {{ display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }}
+.task-status {{ font-weight: 600; font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.04em; }}
+.task-status.pass {{ background: rgba(52,211,153,0.12); color: var(--green); }}
+.task-status.fail {{ background: rgba(248,113,113,0.12); color: var(--red); }}
+.task-id {{ font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }}
+.task-diff {{ background: var(--surface2); color: var(--text2); padding: 3px 10px;
+  border-radius: 20px; font-size: 0.75rem; }}
+.task-meta {{ color: var(--text3); font-size: 0.8rem; margin-left: auto;
+  font-family: 'JetBrains Mono', monospace; }}
+.task-overall {{ font-weight: 700; font-size: 1.15rem;
+  font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }}
+.task-desc {{ color: var(--text2); font-size: 0.88rem; margin-bottom: 14px; line-height: 1.5; }}
 
 /* Score bars */
-.score-row {{ display: flex; align-items: center; margin-bottom: 4px; }}
-.score-label {{ width: 120px; font-size: 0.8rem; color: var(--text2); }}
-.score-track {{ flex: 1; height: 16px; background: var(--border); border-radius: 3px; overflow: hidden; }}
-.score-fill {{ height: 100%; border-radius: 3px; transition: width 0.3s; }}
-.score-fill.green {{ background: var(--green); }}
-.score-fill.yellow {{ background: var(--yellow); }}
-.score-fill.red {{ background: var(--red); }}
-.score-value {{ width: 40px; text-align: right; font-size: 0.8rem; font-weight: 600; }}
+.scores-section {{ margin-bottom: 8px; }}
+.score-row {{ display: flex; align-items: center; margin-bottom: 6px; }}
+.score-label {{ width: 130px; font-size: 0.78rem; color: var(--text2);
+  font-family: 'JetBrains Mono', monospace; }}
+.score-track {{ flex: 1; height: 18px; background: var(--surface2); border-radius: 4px; overflow: hidden; }}
+.score-fill {{ height: 100%; border-radius: 4px; animation: fillBar 0.6s ease-out; }}
+.score-fill.green {{ background: linear-gradient(90deg, #059669, var(--green)); }}
+.score-fill.yellow {{ background: linear-gradient(90deg, #d97706, var(--yellow)); }}
+.score-fill.red {{ background: linear-gradient(90deg, #dc2626, var(--red)); }}
+.score-value {{ width: 48px; text-align: right; font-size: 0.8rem; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; }}
 
 /* Trajectory */
-.trajectory-details {{ margin-top: 12px; }}
-.trajectory-details summary {{ cursor: pointer; color: var(--blue); font-size: 0.9rem; }}
-.trajectory {{ margin-top: 8px; max-height: none; overflow-y: visible;
-  border: 1px solid var(--border); border-radius: 6px; padding: 12px; }}
-.msg {{ padding: 8px 12px; margin-bottom: 6px; border-radius: 6px; font-size: 0.85rem;
-  white-space: pre-wrap; word-break: break-word; position: relative; }}
-.msg-meta {{ font-size: 0.7rem; color: var(--text2); margin-left: 8px; }}
+.trajectory-details {{ margin-top: 14px; }}
+.trajectory-details summary {{ cursor: pointer; color: var(--blue); font-size: 0.85rem;
+  font-weight: 500; padding: 6px 0; user-select: none; }}
+.trajectory-details summary:hover {{ color: var(--accent); }}
+.trajectory {{ margin-top: 10px; border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; background: var(--bg); }}
+.msg {{ padding: 10px 14px; margin-bottom: 8px; border-radius: 8px; font-size: 0.82rem;
+  white-space: pre-wrap; word-break: break-word; position: relative; line-height: 1.6; }}
+.msg-meta {{ font-size: 0.68rem; color: var(--text3); margin-left: 8px;
+  font-family: 'JetBrains Mono', monospace; }}
 .msg-full {{ display: none; }}
-.expand-btn, .copy-btn {{ background: var(--border); color: var(--text2); border: none;
-  border-radius: 3px; padding: 2px 8px; font-size: 0.7rem; cursor: pointer;
-  margin-left: 6px; vertical-align: middle; }}
-.expand-btn:hover, .copy-btn:hover {{ background: var(--accent); color: var(--text); }}
-.role {{ display: inline-block; font-weight: 700; font-size: 0.75rem; margin-right: 8px;
-  padding: 1px 6px; border-radius: 3px; }}
-.msg-system {{ background: rgba(88,166,255,0.08); }}
-.msg-system .role {{ background: rgba(88,166,255,0.2); color: var(--blue); }}
-.msg-user {{ background: rgba(63,185,80,0.08); }}
-.msg-user .role {{ background: rgba(63,185,80,0.2); color: var(--green); }}
-.msg-agent {{ background: rgba(210,153,34,0.08); }}
-.msg-agent .role {{ background: rgba(210,153,34,0.2); color: var(--yellow); }}
-.msg-tool-call {{ background: rgba(139,148,158,0.08); }}
-.msg-tool-call .role {{ background: rgba(139,148,158,0.2); color: var(--text2); }}
-.msg-tool-call code {{ font-size: 0.82rem; }}
-.msg-env {{ background: rgba(139,148,158,0.05); }}
-.msg-env .role {{ background: rgba(139,148,158,0.15); color: var(--text2); }}
-.msg-env code {{ font-size: 0.82rem; }}
-.msg-env-error {{ background: rgba(248,81,73,0.08); }}
-.msg-env-error .role {{ background: rgba(248,81,73,0.2); color: var(--red); }}
+.expand-btn, .copy-btn {{ background: var(--surface2); color: var(--text2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 10px; font-size: 0.68rem; cursor: pointer;
+  margin-left: 6px; vertical-align: middle; font-family: 'Inter', sans-serif;
+  transition: all 0.15s; }}
+.expand-btn:hover, .copy-btn:hover {{ background: var(--accent); color: white; border-color: var(--accent); }}
+.role {{ display: inline-block; font-weight: 600; font-size: 0.68rem; margin-right: 8px;
+  padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; }}
+.msg-system {{ background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.1); }}
+.msg-system .role {{ background: rgba(96,165,250,0.15); color: var(--blue); }}
+.msg-user {{ background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.1); }}
+.msg-user .role {{ background: rgba(52,211,153,0.15); color: var(--green); }}
+.msg-agent {{ background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.1); }}
+.msg-agent .role {{ background: rgba(251,191,36,0.15); color: var(--yellow); }}
+.msg-tool-call {{ background: rgba(122,139,160,0.06); border: 1px solid rgba(122,139,160,0.1); }}
+.msg-tool-call .role {{ background: rgba(122,139,160,0.15); color: var(--text2); }}
+.msg-tool-call code {{ font-size: 0.8rem; }}
+.msg-env {{ background: rgba(122,139,160,0.04); border: 1px solid rgba(122,139,160,0.08); }}
+.msg-env .role {{ background: rgba(122,139,160,0.1); color: var(--text2); }}
+.msg-env code {{ font-size: 0.8rem; }}
+.msg-env-error {{ background: rgba(248,113,113,0.06); border: 1px solid rgba(248,113,113,0.1); }}
+.msg-env-error .role {{ background: rgba(248,113,113,0.15); color: var(--red); }}
 
-/* Analysis section */
+/* Analysis & warning sections */
 .analysis-section {{ background: var(--surface); border: 1px solid var(--border);
-  border-left: 3px solid var(--yellow); border-radius: 8px; padding: 20px; margin-bottom: 32px; }}
-.analysis-section h2 {{ font-size: 1.1rem; margin-bottom: 12px; color: var(--yellow); }}
-.analysis-content {{ font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap; color: var(--text); }}
+  border-left: 3px solid var(--yellow); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }}
+.analysis-section h2 {{ font-size: 1.05rem; font-weight: 600; margin-bottom: 12px; color: var(--yellow); }}
+.analysis-content {{ font-size: 0.88rem; line-height: 1.8; white-space: pre-wrap; color: var(--text); }}
+
+/* Footer */
+.footer {{ color: var(--text3); font-size: 0.75rem; text-align: center;
+  margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }}
+
+/* Responsive */
+@media (max-width: 640px) {{
+  .dashboard {{ grid-template-columns: repeat(2, 1fr); }}
+  .container {{ padding: 20px 16px; }}
+}}
 </style>
 </head>
 <body>
+<div class="container">
+<div class="header">
 <h1>{title}</h1>
 <p class="source">{source_label}: {source}</p>
+</div>
 
 <div class="dashboard">
   <div class="stat-card">
@@ -551,12 +599,11 @@ h1 {{ font-size: 1.5rem; margin-bottom: 4px; }}
 
 {analysis_section}
 
-<h2 style="margin-bottom:12px">{label_results}</h2>
+<h2 style="margin-bottom:16px;font-size:1.05rem;font-weight:600">{label_results}</h2>
 {task_cards}
 
-<p style="color:var(--text2);font-size:0.8rem;margin-top:24px;text-align:center">
-  {footer}
-</p>
+<p class="footer">{footer}</p>
+</div>
 <script>
 function toggleMsg(id) {{
   var preview = document.getElementById(id + '-preview');
