@@ -161,11 +161,26 @@ def main():
     adapter = AdapterClass(**adapter_params)
 
     # Build evaluators
-    evaluator_names = config.get("evaluators", ["state_match", "action_match"])
+    # Supports two formats:
+    #   evaluators: [state_match, action_match]           # simple list
+    #   evaluators:                                        # with params
+    #     - name: llm_judge
+    #       model: glm-5
+    #     - state_match                                    # mixed OK
+    evaluator_configs = config.get("evaluators", ["state_match", "action_match"])
     evaluator_map = {}
-    for name in evaluator_names:
+    evaluator_names = []
+    for item in evaluator_configs:
+        if isinstance(item, str):
+            name, params = item, {}
+        elif isinstance(item, dict):
+            name = item["name"]
+            params = {k: v for k, v in item.items() if k != "name"}
+        else:
+            continue
         EvalClass = registry.get_evaluator(name)
-        evaluator_map[name] = EvalClass()
+        evaluator_map[name] = EvalClass(**params)
+        evaluator_names.append(name)
 
     # Build user simulator (optional)
     user = None
