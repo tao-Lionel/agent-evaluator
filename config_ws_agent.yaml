@@ -15,10 +15,11 @@ environment:
 evaluators:
   - name: llm_judge
     model: glm-5
+    max_tokens: 4096
   - name: nl_assertion
     model: glm-5
+    max_tokens: 4096
   - info_delivery
-  - action_match
 
 scenarios: scenarios/ws_agent_tasks.json
 

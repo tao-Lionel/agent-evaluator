@@ -307,8 +307,9 @@ def _render_task_card(result: dict, eval_names: list[str], t: dict) -> str:
     elapsed = result.get("elapsed_seconds", 0)
     is_pass = overall >= 1.0 - 1e-6
 
-    # Score bars
+    # Score bars + details
     score_bars = ""
+    details = result.get("score_details", {})
     for name in eval_names:
         score = result.get("scores", {}).get(name, 0)
         score_bars += (
@@ -318,6 +319,17 @@ def _render_task_card(result: dict, eval_names: list[str], t: dict) -> str:
             f'style="width:{score*100:.1f}%"></div></div>'
             f'<span class="score-value">{score:.2f}</span></div>\n'
         )
+        reason = details.get(name, "")
+        if reason:
+            detail_id = f"detail-{id(result) % 100000}-{name}"
+            score_bars += (
+                f'<details class="score-reason-details">'
+                f'<summary class="score-reason-toggle">{escape(name)} 评判详情</summary>'
+                f'<div class="score-reason" id="{detail_id}">'
+                f'<button class="copy-btn" onclick="navigator.clipboard.writeText('
+                f'document.getElementById(\'{detail_id}\').innerText)">Copy</button>'
+                f'{escape(reason)}</div></details>\n'
+            )
 
     # Trajectory
     traj_html = _render_trajectory(result.get("trajectory", []))
@@ -514,6 +526,16 @@ code, .mono {{ font-family: 'JetBrains Mono', monospace; font-size: 0.82em; }}
 .score-fill.red {{ background: linear-gradient(90deg, #dc2626, var(--red)); }}
 .score-value {{ width: 48px; text-align: right; font-size: 0.8rem; font-weight: 600;
   font-family: 'JetBrains Mono', monospace; }}
+
+/* Score reason details */
+.score-reason-details {{ margin: 2px 0 8px 130px; }}
+.score-reason-toggle {{ cursor: pointer; color: var(--text3); font-size: 0.72rem;
+  user-select: none; transition: color 0.15s; }}
+.score-reason-toggle:hover {{ color: var(--blue); }}
+.score-reason {{ margin-top: 6px; padding: 10px 14px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px; font-size: 0.78rem;
+  color: var(--text2); white-space: pre-wrap; word-break: break-word; line-height: 1.6;
+  position: relative; }}
 
 /* Trajectory */
 .trajectory-details {{ margin-top: 14px; }}

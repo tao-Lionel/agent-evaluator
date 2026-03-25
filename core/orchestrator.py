@@ -134,6 +134,7 @@ class Orchestrator:
 
         # ── Evaluation ──
         scores: dict[str, float] = {}
+        score_details: dict[str, str] = {}
         for name, evaluator in self.evaluators.items():
             if self.on_progress:
                 try:
@@ -145,6 +146,10 @@ class Orchestrator:
             except Exception as e:
                 logger.error("Evaluator '%s' failed: %s", name, e)
                 scores[name] = 0.0
+            # Collect reasoning from LLM-based evaluators
+            reason = getattr(evaluator, "last_reason", "")
+            if reason:
+                score_details[name] = reason
 
         overall = 1.0
         for s in scores.values():
@@ -166,6 +171,7 @@ class Orchestrator:
             terminated=termination,
             trajectory=trajectory,
             scores=scores,
+            score_details=score_details,
             overall_score=overall,
             steps_taken=steps,
             elapsed_seconds=elapsed,

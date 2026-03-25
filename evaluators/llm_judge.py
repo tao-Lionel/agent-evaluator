@@ -64,12 +64,14 @@ class LLMJudgeEvaluator(Evaluator):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.last_reason: str = ""
         self.client = OpenAI(
             api_key=api_key or os.getenv("ZHIPU_API_KEY", ""),
             base_url=base_url or "https://open.bigmodel.cn/api/paas/v4",
         )
 
     def evaluate(self, task: Task, trajectory: list[Message], env: Environment) -> float:
+        self.last_reason = ""
         prompt = self._build_judge_prompt(task, trajectory)
 
         try:
@@ -83,6 +85,7 @@ class LLMJudgeEvaluator(Evaluator):
                 max_tokens=self.max_tokens,
             )
             judge_text = response.choices[0].message.content or ""
+            self.last_reason = judge_text
             score = self._parse_score(judge_text)
             if score < 0:
                 logger.warning("LLMJudge for %s: INSUFFICIENT_INFO — returning 0.5\n%s", task.id, judge_text)
@@ -90,6 +93,7 @@ class LLMJudgeEvaluator(Evaluator):
             logger.info("LLMJudge for %s: score=%.2f\n%s", task.id, score, judge_text)
             return score
         except Exception as e:
+            self.last_reason = f"Error: {e}"
             logger.error("LLMJudge failed: %s", e)
             return 0.0
 

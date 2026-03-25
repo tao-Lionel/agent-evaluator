@@ -86,6 +86,7 @@ class EvalResult:
     scores: dict[str, float]
     overall_score: float
     steps_taken: int
+    score_details: dict[str, str] = field(default_factory=dict)
     diagnosis: str = ""
     elapsed_seconds: float = 0.0
     step_durations: list[float] = field(default_factory=list)
@@ -102,6 +103,8 @@ class EvalResult:
             "elapsed_seconds": round(self.elapsed_seconds, 2),
             "trajectory": self._serialize_trajectory(),
         }
+        if self.score_details:
+            result["score_details"] = self.score_details
         if self.step_durations:
             result["step_durations"] = [round(d, 3) for d in self.step_durations]
         if self.step_rewards:

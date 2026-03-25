@@ -76,12 +76,14 @@ class NLAssertionEvaluator(Evaluator):
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.last_reason: str = ""
         self.client = OpenAI(
             api_key=api_key or os.getenv("ZHIPU_API_KEY", ""),
             base_url=base_url or "https://open.bigmodel.cn/api/paas/v4",
         )
 
     def evaluate(self, task: Task, trajectory: list[Message], env: Environment) -> float:
+        self.last_reason = ""
         assertions = task.nl_assertions
         if not assertions:
             return 1.0  # no assertions to check
@@ -126,6 +128,7 @@ class NLAssertionEvaluator(Evaluator):
                 max_tokens=self.max_tokens,
             )
             judge_text = response.choices[0].message.content or ""
+            self.last_reason = judge_text
             passed, total = _parse_results(judge_text, len(assertions))
             score = passed / total if total > 0 else 0.0
             logger.info(
@@ -134,6 +137,7 @@ class NLAssertionEvaluator(Evaluator):
             )
             return score
         except Exception as e:
+            self.last_reason = f"Error: {e}"
             logger.error("NLAssertion failed: %s", e)
             return 0.0
 
