@@ -167,8 +167,12 @@ class Orchestrator:
             progress_rate=progress_rate,
         )
 
-    @staticmethod
-    def _build_system_prompt(init_obs: str, task: Task) -> str:
+    def _build_system_prompt(self, init_obs: str, task: Task) -> str:
+        # HTTP Agent (passthrough): no tools, no "done" instruction
+        if not self.env.get_tool_schemas():
+            return f"## 任务描述\n{task.description}"
+
+        # Tool-calling Agent: full prompt with tool instructions
         return (
             "你是一个专业的客服助手。"
             "请使用提供的工具来完成用户的请求。"
