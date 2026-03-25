@@ -87,16 +87,27 @@ class EvalResult:
     overall_score: float
     steps_taken: int
     diagnosis: str = ""
+    elapsed_seconds: float = 0.0
+    step_durations: list[float] = field(default_factory=list)
+    step_rewards: list[float] = field(default_factory=list)
+    progress_rate: float = 0.0
 
     def summary(self) -> dict[str, Any]:
-        return {
+        result = {
             "task_id": self.task_id,
             "terminated": self.terminated.value,
             "steps_taken": self.steps_taken,
             "scores": self.scores,
             "overall_score": self.overall_score,
+            "elapsed_seconds": round(self.elapsed_seconds, 2),
             "trajectory": self._serialize_trajectory(),
         }
+        if self.step_durations:
+            result["step_durations"] = [round(d, 3) for d in self.step_durations]
+        if self.step_rewards:
+            result["step_rewards"] = [round(r, 3) for r in self.step_rewards]
+            result["progress_rate"] = round(self.progress_rate, 3)
+        return result
 
     def _serialize_trajectory(self) -> list[dict[str, Any]]:
         result = []

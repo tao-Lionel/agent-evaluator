@@ -60,12 +60,15 @@ uvicorn eval_bot.feishu:app --port 8102
   - `state_match` — DB 状态比对（MD5 精确匹配 + 子集匹配 fallback）
   - `action_match` — 工具调用部分参数匹配
   - `info_delivery` — Agent 回复子串检查（模糊匹配）
-  - `llm_judge` — LLM 回复质量评分（1-5 分，适用于黑盒 Agent）
+  - `llm_judge` — LLM 回复质量评分（1-5 分，适用于黑盒 Agent，支持 INSUFFICIENT_INFO 逃生门）
   - `nl_assertion` — 自然语言断言评估（LLM-as-Judge 逐条判 PASS/FAIL）
+- **指标与校准**（`core/`）：
+  - `metrics.py` — Pass@k / Pass^k 一致性指标、饱和度警告
+  - `calibration.py` — Grader 校准框架（LLM vs 人工评分一致性）
 - **用户模拟器**（2 个）：
   - `scripted` — 关键词/默认分支脚本化用户
   - `llm` — LLM 角色扮演用户（persona + goal 驱动）
-- **报告**：`report.py` — 自包含 HTML 报告，深色主题，支持中英双语，含轨迹可视化
+- **报告**：`report.py` — 自包含 HTML 报告，深色主题，支持中英双语，含轨迹可视化、能力雷达图、一致性指标表、饱和度警告
 - **eval_bot**（`eval_bot/`）：飞书 Bot + LLM 智能编排，三个功能：
   - `quick_eval` — 对 HTTP Bot 发起快速评测（异步，结果推回飞书）
   - `query_results` — 查询历史评测结果（LLM 回答）
@@ -86,7 +89,7 @@ uvicorn eval_bot.feishu:app --port 8102
 ## 目录结构
 
 ```
-core/           — 核心引擎（types, base, registry, orchestrator）
+core/           — 核心引擎（types, base, registry, orchestrator, metrics, calibration）
 adapters/       — Agent 适配器（openai_fc, http_bot）
 environments/   — 环境实现（mock_db, passthrough）
 evaluators/     — 评估器（state_match, action_match, info_delivery, llm_judge, nl_assertion）
@@ -114,10 +117,11 @@ results/        — 评估结果输出（JSON + HTML 报告）
 
 任务定义在 JSON 数组中。每个任务包含：`id`、`description`、`initial_message`、`initial_state`（DB 表数据）、`expected_actions`（含 `match_args` 用于部分匹配）、`expected_state`（用于子集匹配 fallback）、`required_info`、`difficulty`、`max_steps`、`nl_assertions`（可选，自然语言断言列表）、`user_scenario`（可选，含 `persona`、`goal`、`script` 用于多轮对话）、`single_turn`（可选，用于黑盒 Agent）。
 
-当前有三套场景：
+当前有四套场景：
 - `scenarios/sample_tasks.json` — 5 个单轮任务（easy/medium/hard）
 - `scenarios/multi_turn_tasks.json` — 3 个多轮对话任务
 - `scenarios/http_bot_tasks.json` — 5 个 HTTP Bot 评估任务
+- `scenarios/negative_tasks.json` — 5 个反例场景（越权、信息不足、批量删除、不存在资源、业务规则）
 
 所有场景和系统提示词均为中文。
 

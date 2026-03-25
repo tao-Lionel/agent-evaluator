@@ -23,6 +23,19 @@ def test_scoring_logic():
     print("  LLMJudge score parsing: PASSED")
 
 
+def test_insufficient_info_escape_hatch():
+    """Test INSUFFICIENT_INFO escape hatch returns -1.0 sentinel."""
+    evaluator = LLMJudgeEvaluator.__new__(LLMJudgeEvaluator)
+
+    assert evaluator._parse_score("SCORE: INSUFFICIENT_INFO") == -1.0
+    assert evaluator._parse_score("Cannot judge this. SCORE: INSUFFICIENT_INFO") == -1.0
+    assert evaluator._parse_score("score: insufficient_info") == -1.0
+    # Regular scores should still work
+    assert evaluator._parse_score("SCORE: 3") == 0.6
+
+    print("  LLMJudge INSUFFICIENT_INFO escape hatch: PASSED")
+
+
 def test_prompt_building():
     """Test that the judge prompt is correctly built."""
     evaluator = LLMJudgeEvaluator.__new__(LLMJudgeEvaluator)
@@ -90,6 +103,7 @@ def test_nl_assertion_parse_edge_cases():
 
 if __name__ == "__main__":
     test_scoring_logic()
+    test_insufficient_info_escape_hatch()
     test_prompt_building()
     test_nl_assertion_parse_results()
     test_nl_assertion_no_assertions()

@@ -21,6 +21,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from core.types import Role, Task, EvalResult
 from core.registry import registry
 from core.orchestrator import Orchestrator
+from core.metrics import compute_trial_stats, check_saturation
 from report import generate_html, load_results
 
 # Register all pluggable components
@@ -71,7 +72,7 @@ def print_result(result: EvalResult, task: Task):
     print()
 
     # Scores
-    print(f"       Result   : {result.terminated.value}")
+    print(f"       Result   : {result.terminated.value}  ({result.elapsed_seconds:.1f}s)")
     for name, score in result.scores.items():
         bar = "+" * int(score * 10) + "-" * (10 - int(score * 10))
         print(f"       {name:15s}: {score:.2f} [{bar}]")
@@ -205,7 +206,31 @@ def main():
 
     # Summary
     print_summary(all_results)
-    print(f"\n  Total time: {elapsed:.1f}s\n")
+
+    # Saturation warning
+    all_scores = [r.overall_score for r in all_results]
+    sat_warning = check_saturation(all_scores)
+    if sat_warning:
+        print(f"  *** {sat_warning} ***\n")
+
+    # Trial consistency stats (when num_trials > 1)
+    trial_stats = None
+    if num_trials > 1:
+        results_by_task: dict[str, list[float]] = {}
+        for r in all_results:
+            results_by_task.setdefault(r.task_id, []).append(r.overall_score)
+        k_values = [k for k in [1, 3, 5] if k <= num_trials]
+        trial_stats = compute_trial_stats(results_by_task, k_values=k_values)
+        print("  Consistency Metrics:")
+        for tid, st in trial_stats.items():
+            parts = [f"pass_rate={st['pass_rate']:.0%}"]
+            for k in k_values:
+                parts.append(f"pass@{k}={st[f'pass@{k}']:.2f}")
+                parts.append(f"pass^{k}={st[f'pass^{k}']:.2f}")
+            print(f"    {tid}: {', '.join(parts)}")
+        print()
+
+    print(f"  Total time: {elapsed:.1f}s\n")
 
     # Save results
     output_dir = PROJECT_ROOT / "results"
@@ -224,6 +249,12 @@ def main():
                 "initial_message": t.initial_message,
             }
         results_data.append(entry)
+    # Append trial stats and saturation warning as metadata
+    if trial_stats:
+        results_data.append({"_trial_stats": trial_stats})
+    if sat_warning:
+        results_data.append({"_saturation_warning": sat_warning})
+
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(
             results_data,

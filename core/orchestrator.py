@@ -52,15 +52,21 @@ class Orchestrator:
 
         termination = TerminationReason.MAX_STEPS
         steps = 0
+        step_durations: list[float] = []
+        step_rewards: list[float] = []
+        # Get state_match evaluator for progress tracking (if available)
+        _progress_evaluator = self.evaluators.get("state_match")
 
         for step in range(task.max_steps):
             steps = step + 1
+            step_start = time.time()
 
             # ── Agent generates a response ──
             try:
                 agent_msg = self.agent.act(trajectory)
             except Exception as e:
                 logger.error("Agent error at step %d: %s", step, e)
+                step_durations.append(time.time() - step_start)
                 termination = TerminationReason.AGENT_ERROR
                 break
 
@@ -69,6 +75,7 @@ class Orchestrator:
             # ── Case 1: text-only reply (no tool calls) ──
             if not agent_msg.tool_calls:
                 if self._is_stop_signal(agent_msg) or task.single_turn:
+                    step_durations.append(time.time() - step_start)
                     termination = TerminationReason.SUCCESS
                     break
 
@@ -76,9 +83,11 @@ class Orchestrator:
                 if self.user:
                     user_msg = self.user.respond(task, trajectory)
                     if user_msg is None:
+                        step_durations.append(time.time() - step_start)
                         termination = TerminationReason.USER_STOP
                         break
                     trajectory.append(user_msg)
+                step_durations.append(time.time() - step_start)
                 continue
 
             # ── Case 2: tool calls ──
@@ -107,6 +116,16 @@ class Orchestrator:
 
             trajectory.append(Message(role=Role.ENV, tool_results=tool_results))
 
+            # Track intermediate reward for progress rate
+            if _progress_evaluator:
+                try:
+                    reward = _progress_evaluator.evaluate(task, trajectory, self.env)
+                    step_rewards.append(reward)
+                except Exception:
+                    step_rewards.append(step_rewards[-1] if step_rewards else 0.0)
+
+            step_durations.append(time.time() - step_start)
+
             if task_done:
                 termination = TerminationReason.SUCCESS
                 break
@@ -124,10 +143,15 @@ class Orchestrator:
         for s in scores.values():
             overall *= s
 
+        # Compute progress rate: area under step-reward curve / max possible
+        progress_rate = 0.0
+        if step_rewards:
+            progress_rate = sum(step_rewards) / len(step_rewards)
+
         elapsed = time.time() - start
         logger.info(
-            "Task %s done in %.1fs | %d steps | %s | overall=%.2f",
-            task.id, elapsed, steps, termination.value, overall,
+            "Task %s done in %.1fs | %d steps | %s | overall=%.2f | progress=%.2f",
+            task.id, elapsed, steps, termination.value, overall, progress_rate,
         )
 
         return EvalResult(
@@ -137,6 +161,10 @@ class Orchestrator:
             scores=scores,
             overall_score=overall,
             steps_taken=steps,
+            elapsed_seconds=elapsed,
+            step_durations=step_durations,
+            step_rewards=step_rewards,
+            progress_rate=progress_rate,
         )
 
     @staticmethod

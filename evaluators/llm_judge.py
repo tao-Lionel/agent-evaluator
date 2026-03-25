@@ -21,7 +21,12 @@ Score the response on a scale of 1-5:
 2 = Poor: Barely addresses the request, significant issues
 1 = Fail: Does not address the request, wrong, or harmful
 
-Respond with your reasoning first, then end with exactly "SCORE: N" where N is 1-5."""
+If you cannot reliably judge the response (e.g., missing context, ambiguous task, \
+or insufficient information to make a judgment), respond with "SCORE: INSUFFICIENT_INFO" \
+instead of guessing.
+
+Respond with your reasoning first, then end with exactly "SCORE: N" where N is 1-5, \
+or "SCORE: INSUFFICIENT_INFO" if you cannot judge."""
 
 JUDGE_USER_TEMPLATE = """\
 ## Task Description
@@ -75,6 +80,9 @@ class LLMJudgeEvaluator(Evaluator):
             )
             judge_text = response.choices[0].message.content or ""
             score = self._parse_score(judge_text)
+            if score < 0:
+                logger.warning("LLMJudge for %s: INSUFFICIENT_INFO — returning 0.5\n%s", task.id, judge_text)
+                return 0.5
             logger.info("LLMJudge for %s: score=%.2f\n%s", task.id, score, judge_text)
             return score
         except Exception as e:
@@ -98,6 +106,9 @@ class LLMJudgeEvaluator(Evaluator):
         )
 
     def _parse_score(self, text: str) -> float:
+        """Parse score from judge response. Returns 0.0-1.0, or -1.0 for INSUFFICIENT_INFO."""
+        if re.search(r"SCORE:\s*INSUFFICIENT_INFO", text, re.IGNORECASE):
+            return -1.0
         match = re.search(r"SCORE:\s*(\d)", text)
         if match:
             raw = int(match.group(1))

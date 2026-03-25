@@ -1,0 +1,21 @@
+agent:
+  adapter: openai_fc
+  model: glm-4.7
+  api_key: ${ZHIPU_API_KEY}
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  temperature: 0.0
+
+environment:
+  type: mock_db
+
+evaluators:
+  - state_match
+  - action_match
+  - info_delivery
+  - nl_assertion
+
+scenarios: scenarios/negative_tasks.json
+
+run:
+  num_trials: 1
+  log_level: INFO
