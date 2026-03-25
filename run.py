@@ -360,7 +360,34 @@ def main():
     with open(report_file, "w", encoding="utf-8") as f:
         f.write(html)
     print(f"  Report saved to {report_file}")
+
+    # Auto-generate comparison report with previous run (same agent name)
+    if agent_name:
+        prev = _find_previous_result(output_dir, safe_name, output_file.name)
+        if prev:
+            from compare import load_results as load_cmp, generate_compare_html
+            cmp_a, meta_cmp_a = load_cmp(str(prev))
+            cmp_b, meta_cmp_b = load_cmp(str(output_file))
+            cmp_html = generate_compare_html(
+                cmp_a, meta_cmp_a, str(prev),
+                cmp_b, meta_cmp_b, str(output_file),
+            )
+            cmp_file = output_file.with_name(f"compare_{safe_name}.html")
+            with open(cmp_file, "w", encoding="utf-8") as f:
+                f.write(cmp_html)
+            print(f"  Compare saved to {cmp_file}  (vs {prev.name})")
+
     print()
+
+
+def _find_previous_result(output_dir: Path, safe_name: str, current_name: str) -> Path | None:
+    """Find the most recent result file with the same agent name, excluding current."""
+    candidates = sorted(
+        [f for f in output_dir.glob(f"results_{safe_name}_*.json") if f.name != current_name],
+        key=lambda f: f.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
 
 
 if __name__ == "__main__":
