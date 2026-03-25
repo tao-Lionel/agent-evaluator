@@ -52,7 +52,7 @@ uvicorn eval_bot.feishu:app --port 8102
 
 - **适配器**（2 个）：
   - `openai_fc` — OpenAI 兼容函数调用 API（支持智谱等）
-  - `http_bot` — HTTP 接口适配，支持三种历史模式（last/history/session）、重试机制、嵌套 JSON 路径解析
+  - `http_bot` — 通用 HTTP API 适配，支持 `request_template` 配置驱动（无需写代码）、`reply_field: "."` 整体响应提取、三种历史模式（last/history/session）、重试机制、嵌套 JSON 路径解析
 - **环境**（2 个）：
   - `mock_db` — 内存 CRUD 数据库（query/update/insert/delete/done）
   - `passthrough` — 透传环境，用于黑盒 Agent 评估（无工具、无状态变更）
@@ -81,6 +81,8 @@ uvicorn eval_bot.feishu:app --port 8102
 1. **工具调用 Agent**（`config.yaml`）：openai_fc + mock_db → state_match, action_match, info_delivery
 2. **多轮对话 Agent**（`config_multi_turn.yaml`）：openai_fc + mock_db + scripted user → 加 nl_assertion
 3. **黑盒 HTTP Agent**（`config_http_bot.yaml`）：http_bot + passthrough → info_delivery, llm_judge
+4. **反例测试**（`config_negative.yaml`）：openai_fc + mock_db → state_match, action_match, info_delivery, nl_assertion
+5. **通用 HTTP Agent**（`config_template.yaml`）：http_bot（request_template 配置驱动）+ passthrough → 按需组合评估器
 
 ## 新增组件
 
@@ -106,7 +108,7 @@ results/        — 评估结果输出（JSON + HTML 报告）
 
 `config.yaml` 支持 `${ENV_VAR}` 环境变量展开（不支持 `:-default` 语法）。主要配置段：
 
-- `agent` — adapter, model, api_key, base_url, temperature；http_bot 额外支持 url, history_mode, max_retries, retry_delay, request_field, reply_field
+- `agent` — adapter, model, api_key, base_url, temperature；http_bot 额外支持 url, request_template（配置驱动请求模板）, reply_field（支持 "." 整体提取）, history_mode, max_retries, retry_delay
 - `environment` — type
 - `user`（可选）— type + 参数（scripted 或 llm）
 - `evaluators` — 评估器名称列表

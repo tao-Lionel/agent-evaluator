@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 import uuid
 import logging
 import time
@@ -16,41 +18,42 @@ logger = logging.getLogger(__name__)
 
 @registry.adapter("http_bot")
 class HttpBotAdapter(AgentAdapter):
-    """Adapter for any chatbot that exposes an HTTP POST interface.
+    """Universal adapter for any HTTP API Agent.
 
-    Supports three modes via `history_mode`:
-      - "last"    : send only the last user message as a string (default, simplest)
-      - "history" : send full conversation history as a messages array
-      - "session" : send last user message + conversation_id for server-side history
+    Two request modes:
 
-    Request/response field names are configurable.
+      1. request_template (recommended) — config-driven, no code needed:
 
-    Example configs:
+         agent:
+           adapter: http_bot
+           bot_url: "http://localhost:8000/api/generate"
+           request_template:
+             topic: "${initial_message}"
+             page_count: 10
+           reply_field: "."
 
-      # Simple bot (single message in, single reply out)
-      agent:
-        adapter: http_bot
-        bot_url: "http://localhost:8000/chat"
+      2. message_field (legacy) — simple chat bots:
 
-      # Bot that accepts conversation history
-      agent:
-        adapter: http_bot
-        bot_url: "http://localhost:8000/chat"
-        history_mode: history
-        message_field: messages
-        reply_field: reply
+         agent:
+           adapter: http_bot
+           bot_url: "http://localhost:8000/chat"
+           reply_field: "reply"
 
-      # Bot with server-side session
-      agent:
-        adapter: http_bot
-        bot_url: "http://localhost:8000/chat"
-        history_mode: session
-        session_field: conversation_id
+    reply_field supports:
+      "reply"       → response["reply"]
+      "data.reply"  → response["data"]["reply"]
+      "."           → entire response body as JSON string
+
+    history_mode (legacy, chat bots only):
+      "last"    — send only the last user message (default)
+      "history" — send full conversation history array
+      "session" — send last message + conversation_id
     """
 
     def __init__(
         self,
         bot_url: str,
+        request_template: dict[str, Any] | None = None,
         history_mode: str = "last",
         message_field: str = "message",
         reply_field: str = "reply",
@@ -63,6 +66,7 @@ class HttpBotAdapter(AgentAdapter):
         **kwargs,
     ):
         self.bot_url = bot_url
+        self.request_template = request_template
         self.history_mode = history_mode
         self.message_field = message_field
         self.reply_field = reply_field
@@ -85,6 +89,11 @@ class HttpBotAdapter(AgentAdapter):
         return Message(role=Role.AGENT, content=reply_text)
 
     def _build_payload(self, messages: list[Message]) -> dict:
+        # Template mode: render request_template with variable substitution
+        if self.request_template:
+            return self._render_template(messages)
+
+        # Legacy mode: message_field + history_mode
         payload = dict(self.extra_body)
 
         if self.history_mode == "history":
@@ -97,6 +106,36 @@ class HttpBotAdapter(AgentAdapter):
             payload[self.session_field] = self.conversation_id
 
         return payload
+
+    def _render_template(self, messages: list[Message]) -> dict:
+        """Render request_template by substituting ${variable} placeholders."""
+        variables = {
+            "initial_message": self._extract_last_user_message(messages),
+            "description": self._extract_system_description(messages),
+            "task_id": "",
+        }
+
+        def substitute(value: Any) -> Any:
+            if isinstance(value, str):
+                # Replace ${var} patterns
+                def replacer(match: re.Match) -> str:
+                    var_name = match.group(1)
+                    return variables.get(var_name, match.group(0))
+                return re.sub(r"\$\{(\w+)\}", replacer, value)
+            elif isinstance(value, dict):
+                return {k: substitute(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [substitute(item) for item in value]
+            return value
+
+        return substitute(dict(self.request_template))
+
+    @staticmethod
+    def _extract_system_description(messages: list[Message]) -> str:
+        for msg in messages:
+            if msg.role == Role.SYSTEM and msg.content:
+                return msg.content
+        return ""
 
     def _send_with_retry(self, payload: dict) -> str:
         last_error = None
@@ -121,14 +160,25 @@ class HttpBotAdapter(AgentAdapter):
         raise last_error  # type: ignore[misc]
 
     def _extract_reply(self, data: dict) -> str:
-        """Extract reply from response, supporting nested paths like 'data.reply'."""
+        """Extract reply from response.
+
+        Supports:
+          "."           → entire response as JSON string
+          "reply"       → response["reply"]
+          "data.reply"  → response["data"]["reply"]
+        """
+        if self.reply_field == ".":
+            return json.dumps(data, ensure_ascii=False, indent=2)
+
         parts = self.reply_field.split(".")
-        current = data
+        current: Any = data
         for part in parts:
             if isinstance(current, dict):
                 current = current.get(part, "")
             else:
                 return ""
+        if isinstance(current, (dict, list)):
+            return json.dumps(current, ensure_ascii=False, indent=2)
         return str(current) if current else ""
 
     @staticmethod

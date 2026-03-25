@@ -191,6 +191,143 @@ def test_http_bot_extra_body():
     print("  test_http_bot_extra_body: PASSED")
 
 
+class MockTemplateHandler(BaseHTTPRequestHandler):
+    """Echoes back the received request body as JSON."""
+    def do_POST(self):
+        length = int(self.headers["Content-Length"])
+        body = json.loads(self.rfile.read(length))
+        # Return the request body as response so tests can verify it
+        resp = {"received": body, "status": "ok", "slides": [{"page": 1, "layout": "cover"}]}
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(resp).encode())
+
+    def log_message(self, format, *args):
+        pass
+
+
+def test_request_template_basic():
+    """request_template substitutes ${initial_message} into configured fields."""
+    server = _start_server(MockTemplateHandler, 18936)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18936/api/generate",
+            request_template={
+                "topic": "${initial_message}",
+                "page_count": 10,
+                "output_format": "web",
+            },
+            reply_field=".",
+        )
+        adapter.reset()
+
+        messages = [
+            Message(role=Role.SYSTEM, content="System prompt"),
+            Message(role=Role.USER, content="AI trends in 2025"),
+        ]
+        result = adapter.act(messages)
+
+        # reply_field="." should return entire response as JSON
+        data = json.loads(result.content)
+        assert data["received"]["topic"] == "AI trends in 2025"
+        assert data["received"]["page_count"] == 10
+        assert data["received"]["output_format"] == "web"
+        assert data["slides"][0]["layout"] == "cover"
+        print("  test_request_template_basic: PASSED")
+    finally:
+        server.shutdown()
+
+
+def test_request_template_nested():
+    """request_template supports nested dicts and lists."""
+    adapter = HttpBotAdapter(
+        bot_url="http://localhost:9999",
+        request_template={
+            "prompt": "${initial_message}",
+            "config": {
+                "size": "1024x1024",
+                "style": "${description}",
+            },
+            "tags": ["art", "${initial_message}"],
+        },
+    )
+    adapter.reset()
+
+    messages = [
+        Message(role=Role.SYSTEM, content="Generate a landscape"),
+        Message(role=Role.USER, content="sunset over ocean"),
+    ]
+    payload = adapter._build_payload(messages)
+
+    assert payload["prompt"] == "sunset over ocean"
+    assert payload["config"]["size"] == "1024x1024"
+    assert payload["config"]["style"] == "Generate a landscape"
+    assert payload["tags"] == ["art", "sunset over ocean"]
+    print("  test_request_template_nested: PASSED")
+
+
+def test_reply_field_dot():
+    """reply_field='.' serializes entire response as JSON."""
+    server = _start_server(MockTemplateHandler, 18937)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18937/test",
+            request_template={"msg": "${initial_message}"},
+            reply_field=".",
+        )
+        adapter.reset()
+
+        messages = [Message(role=Role.USER, content="test")]
+        result = adapter.act(messages)
+
+        data = json.loads(result.content)
+        assert "received" in data
+        assert "status" in data
+        print("  test_reply_field_dot: PASSED")
+    finally:
+        server.shutdown()
+
+
+def test_reply_field_extracts_nested_json():
+    """When reply_field points to a dict/list, it's serialized as JSON."""
+    server = _start_server(MockTemplateHandler, 18938)
+    try:
+        adapter = HttpBotAdapter(
+            bot_url="http://127.0.0.1:18938/test",
+            request_template={"msg": "${initial_message}"},
+            reply_field="slides",
+        )
+        adapter.reset()
+
+        messages = [Message(role=Role.USER, content="test")]
+        result = adapter.act(messages)
+
+        data = json.loads(result.content)
+        assert isinstance(data, list)
+        assert data[0]["layout"] == "cover"
+        print("  test_reply_field_extracts_nested_json: PASSED")
+    finally:
+        server.shutdown()
+
+
+def test_backward_compatibility():
+    """Without request_template, behaves exactly like before."""
+    adapter = HttpBotAdapter(
+        bot_url="http://localhost:9999",
+        message_field="message",
+        extra_body={"model": "gpt-4"},
+    )
+    adapter.reset()
+    messages = [Message(role=Role.USER, content="Hello")]
+    payload = adapter._build_payload(messages)
+
+    assert payload["message"] == "Hello"
+    assert payload["model"] == "gpt-4"
+    assert "request_template" not in payload
+    print("  test_backward_compatibility: PASSED")
+
+
 if __name__ == "__main__":
     test_http_bot_adapter()
     test_http_bot_session_mode()
@@ -198,4 +335,9 @@ if __name__ == "__main__":
     test_http_bot_nested_reply()
     test_http_bot_reset_new_session()
     test_http_bot_extra_body()
+    test_request_template_basic()
+    test_request_template_nested()
+    test_reply_field_dot()
+    test_reply_field_extracts_nested_json()
+    test_backward_compatibility()
     print("\nAll http_bot tests passed!")

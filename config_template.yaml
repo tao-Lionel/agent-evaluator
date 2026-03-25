@@ -1,0 +1,346 @@
+# ============================================================
+# Agent Evaluator — 通用评估配置模板
+# ============================================================
+#
+# 复制此文件为 config_<your_agent>.yaml，按注释修改即可。
+# 核心原则：只需写 YAML，不需要写 Python 代码。
+#
+# 支持的 Agent 形态:
+#   文本对话  — 聊天 Bot、客服、问答
+#   结构生成  — PPT、代码、翻译、摘要、数据分析
+#   文件生成  — 图片、视频、音频、文档
+#   工具调用  — OpenAI Function Calling Agent
+#
+# 各形态的具体示例见文件末尾。
+#
+# ============================================================
+
+
+# ────────────────────────────────────────────────────────────
+# Agent 接入配置
+# ────────────────────────────────────────────────────────────
+agent:
+
+  # adapter 类型（二选一）:
+  #   http_bot   — 任意 HTTP API Agent（推荐，覆盖 90% 场景）
+  #   openai_fc  — OpenAI 兼容 Function Calling Agent
+  adapter: http_bot
+
+  # ── HTTP 连接 ──
+
+  # [必填] Agent 的 HTTP 端点 URL
+  bot_url: "http://localhost:8000/api/generate"
+
+  # [可选] 请求头（默认已含 Content-Type: application/json）
+  # headers:
+  #   Authorization: "Bearer ${API_KEY}"
+
+  # [可选] 超时与重试
+  timeout: 120          # 秒，默认 120。生图/生视频建议 300+
+  max_retries: 2        # 失败重试次数，默认 2
+  retry_delay: 3.0      # 重试间隔秒数，默认 2.0
+
+  # ── 请求构造 ──
+  #
+  # 方式一：request_template（推荐）
+  #   用模板描述请求 JSON 的完整结构。
+  #   支持的变量：
+  #     ${initial_message}  — 场景中的用户输入（最常用）
+  #     ${description}      — 场景的任务描述
+  #     ${task_id}          — 场景 ID
+  #
+  request_template:
+    topic: "${initial_message}"     # 动态值
+    page_count: 10                  # 静态值
+    output_format: "web"            # 静态值
+  #
+  # 方式二：message_field（旧模式，简单聊天 Bot 用）
+  #   不写 request_template 时，请求为 {message_field: "用户消息"}
+  # message_field: "message"
+
+  # ── 响应提取 ──
+  #
+  # 从 Agent 的 HTTP 响应中提取"回复内容"供评估器检查。
+  #
+  # reply_field 取值规则：
+  #   "reply"           → response["reply"]           纯文本回复
+  #   "data.reply"      → response["data"]["reply"]   嵌套路径
+  #   "."               → 整个响应体序列化为 JSON     结构化/文件输出必选
+  #
+  # 选择指南：
+  #   聊天 Bot     → "reply" 或你的回复字段名
+  #   PPT/代码     → "." （评估器需要看到完整结构）
+  #   生图/生视频  → "." （评估器需要看到 URL + 元数据）
+  #
+  reply_field: "."
+
+  # ── 会话模式（仅聊天 Bot 需要）──
+  #
+  # history_mode 三种模式：
+  #   last     — 只发最后一条用户消息（默认，最简单）
+  #   history  — 发送完整对话历史数组
+  #   session  — 发最后一条 + conversation_id，服务端维护历史
+  #
+  # history_mode: "last"
+  # session_field: "conversation_id"
+
+  # ── extra_body（旧模式附加字段）──
+  # 不用 request_template 时，在请求中追加固定字段
+  # extra_body:
+  #   model: "gpt-4"
+  #   stream: false
+
+
+# ────────────────────────────────────────────────────────────
+# 环境配置
+# ────────────────────────────────────────────────────────────
+environment:
+  # passthrough — 无工具、无状态变更（HTTP Agent 必选）
+  # mock_db     — 内存模拟数据库（Function Calling Agent 用）
+  type: passthrough
+
+
+# ────────────────────────────────────────────────────────────
+# 评估器组合
+# ────────────────────────────────────────────────────────────
+#
+# 按 Agent 形态选择评估器：
+#
+#   ┌──────────────┬──────────────┬──────────────┬──────────────┐
+#   │  聊天对话     │  结构生成     │  文件生成     │  工具调用     │
+#   ├──────────────┼──────────────┼──────────────┼──────────────┤
+#   │ info_delivery│ info_delivery│              │ state_match  │
+#   │ llm_judge    │ llm_judge    │ llm_judge    │ action_match │
+#   │              │ nl_assertion │ nl_assertion │ info_delivery│
+#   │              │              │              │ nl_assertion │
+#   └──────────────┴──────────────┴──────────────┴──────────────┘
+#
+# 评估器说明：
+#   info_delivery  — 回复中是否包含指定关键词（模糊匹配）
+#   llm_judge      — LLM 打分 1-5（整体质量，支持 INSUFFICIENT_INFO 逃生门）
+#   nl_assertion   — 自然语言断言逐条判 PASS/FAIL（最灵活，推荐）
+#   state_match    — DB 状态比对（仅 mock_db 环境）
+#   action_match   — 工具调用参数匹配（仅 Function Calling）
+#
+evaluators:
+  - llm_judge
+  - nl_assertion
+  - info_delivery
+
+
+# ────────────────────────────────────────────────────────────
+# 场景文件
+# ────────────────────────────────────────────────────────────
+# 指向你的评估场景 JSON 文件。
+# 场景编写指南见文件末尾"场景格式"部分。
+scenarios: scenarios/ppt_agent_tasks.json
+
+
+# ────────────────────────────────────────────────────────────
+# 运行设置
+# ────────────────────────────────────────────────────────────
+run:
+  num_trials: 1         # 每个场景执行次数（>1 时自动算 Pass@k / Pass^k）
+  log_level: INFO       # DEBUG 可看完整 HTTP 请求/响应
+
+
+# ============================================================
+# 各形态配置示例
+# ============================================================
+#
+# 以下为注释中的参考示例，覆盖常见 Agent 类型。
+# 使用时取消注释并替换上方对应配置即可。
+#
+# ── 1. 聊天 Bot ──────────────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8001/chat"
+#   reply_field: "reply"               # 只取文本回复
+#   # 不写 request_template，自动用 {message: "用户消息"}
+#
+# evaluators: [info_delivery, llm_judge]
+#
+#
+# ── 2. PPT 生成 Agent ────────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8000/api/generate"
+#   request_template:
+#     topic: "${initial_message}"
+#     page_count: 10
+#     output_format: "web"
+#   reply_field: "."                   # 整个响应（含 slides 数组）
+#   timeout: 120
+#
+# evaluators: [llm_judge, nl_assertion, info_delivery]
+#
+# 场景 nl_assertions 示例：
+#   - "生成的 slides 数组应包含 8-12 个元素"
+#   - "第一个 slide 的 layout 应为 cover"
+#   - "应包含至少一个 chart 或 table 类型的 slide"
+#
+#
+# ── 3. 翻译 Agent ────────────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8002/translate"
+#   request_template:
+#     text: "${initial_message}"
+#     source_lang: "zh"
+#     target_lang: "en"
+#   reply_field: "translation"         # 只取翻译结果文本
+#
+# evaluators: [llm_judge, nl_assertion]
+#
+# 场景 nl_assertions 示例：
+#   - "翻译结果应为英文"
+#   - "不应遗漏原文中的数字和专有名词"
+#   - "译文应保持原文的语气和风格"
+#
+#
+# ── 4. 代码生成 Agent ────────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8003/generate"
+#   request_template:
+#     prompt: "${initial_message}"
+#     language: "python"
+#   reply_field: "data.code"           # 嵌套路径 response.data.code
+#
+# evaluators: [llm_judge, nl_assertion]
+#
+# 场景 nl_assertions 示例：
+#   - "生成的代码应为合法的 Python 语法"
+#   - "应包含函数定义（def 关键字）"
+#   - "不应包含 TODO 或 placeholder 注释"
+#
+#
+# ── 5. 图片生成 Agent ────────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8004/generate-image"
+#   request_template:
+#     prompt: "${initial_message}"
+#     size: "1024x1024"
+#     style: "natural"
+#   reply_field: "."                   # 需要完整响应（含 URL + 元数据）
+#   timeout: 300                       # 生图较慢
+#
+# evaluators: [llm_judge, nl_assertion]
+#
+# 场景 nl_assertions 示例：
+#   - "响应应包含有效的 image_url 字段"
+#   - "响应状态应为 completed 或 success"
+#   - "revised_prompt 应与原始 prompt 语义一致，不应偏离主题"
+#
+# 注意：当前评估基于响应元数据（URL、prompt、尺寸等）。
+#       图片视觉内容评估需要多模态评估器（规划中）。
+#
+#
+# ── 6. 视频生成 Agent ────────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8005/generate-video"
+#   request_template:
+#     prompt: "${initial_message}"
+#     duration: 5
+#     aspect_ratio: "16:9"
+#   reply_field: "."
+#   timeout: 600                       # 生视频很慢
+#   max_retries: 1                     # 超时后不重试
+#
+# evaluators: [llm_judge, nl_assertion]
+#
+# 场景 nl_assertions 示例：
+#   - "响应应包含 video_url 字段"
+#   - "视频时长（duration）应在 4-6 秒范围内"
+#   - "响应状态应为 completed"
+#
+#
+# ── 7. TTS 语音合成 Agent ────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8006/tts"
+#   request_template:
+#     text: "${initial_message}"
+#     voice: "alloy"
+#     speed: 1.0
+#   reply_field: "."
+#   timeout: 60
+#
+# evaluators: [nl_assertion]
+#
+# 场景 nl_assertions 示例：
+#   - "响应应包含 audio_url 字段"
+#   - "音频时长应大于 0 秒"
+#   - "使用的 voice 应为请求中指定的 alloy"
+#
+#
+# ── 8. RAG 知识问答 Agent ────────────────────────────────────
+#
+# agent:
+#   adapter: http_bot
+#   bot_url: "http://localhost:8007/ask"
+#   request_template:
+#     question: "${initial_message}"
+#     knowledge_base: "product_docs"
+#   reply_field: "answer"
+#
+# evaluators: [info_delivery, llm_judge, nl_assertion]
+#
+# 场景 nl_assertions 示例：
+#   - "回答应基于知识库内容，不应编造不存在的产品型号"
+#   - "应引用来源文档或给出依据"
+#   - "对于知识库中没有的问题，应明确表示无法回答"
+#
+#
+# ── 9. Function Calling Agent（工具调用）──────────────────────
+#
+# agent:
+#   adapter: openai_fc
+#   model: glm-4
+#   api_key: ${ZHIPU_API_KEY}
+#   base_url: https://open.bigmodel.cn/api/paas/v4
+#   temperature: 0.0
+#
+# environment:
+#   type: mock_db                      # 需要 mock_db 提供工具
+#
+# evaluators: [state_match, action_match, info_delivery]
+#
+#
+# ============================================================
+# 场景文件格式（scenarios/*.json）
+# ============================================================
+#
+# [
+#   {
+#     "id": "unique-id-001",
+#     "description": "场景描述（供评估器参考）",
+#     "difficulty": "easy|medium|hard",
+#     "single_turn": true,                 // HTTP Agent 通常为 true
+#     "initial_message": "用户输入内容",    // 映射到 ${initial_message}
+#     "initial_state": {},                  // HTTP Agent 留空
+#     "max_steps": 1,                       // 单轮交互设为 1
+#
+#     // ── 评估器数据 ──
+#     "required_info": ["关键词1", "关键词2"],  // info_delivery 用
+#     "nl_assertions": [                        // nl_assertion 用
+#       "断言1：应包含 xxx",
+#       "断言2：不应出现 yyy"
+#     ],
+#
+#     // ── 仅工具调用 Agent 需要 ──
+#     "expected_actions": [],
+#     "expected_state": {}
+#   }
+# ]
+#
+# ============================================================
