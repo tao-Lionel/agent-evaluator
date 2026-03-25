@@ -313,13 +313,15 @@ def main():
     # Save results
     output_dir = PROJECT_ROOT / "results"
     output_dir.mkdir(exist_ok=True)
-    # Use agent name in filename for easy identification
+    # Use agent name + timestamp in filename for easy identification
+    from datetime import datetime
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     if agent_name:
         import re as _re
         safe_name = _re.sub(r'[\\/:*?"<>|\s]+', '-', agent_name).strip('-')
-        output_file = output_dir / f"results_{safe_name}_{int(time.time())}.json"
+        output_file = output_dir / f"results_{safe_name}_{ts}.json"
     else:
-        output_file = output_dir / f"results_{int(time.time())}.json"
+        output_file = output_dir / f"results_{ts}.json"
     # Build task lookup for adding task info to results
     task_map = {t.id: t for t in tasks}
     results_data = []
