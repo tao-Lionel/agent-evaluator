@@ -570,6 +570,106 @@ Agent 评估 = 多维度 x 多场景 x 多试验
 
 ---
 
+## 八、实践落地：从理论到三种评估模式
+
+基于前面的维度体系和评分机制，我们在 Agent Evaluator 框架中落地了三种评估模式，覆盖从白盒到黑盒的不同 Agent 类型。
+
+### 8.1 三种评估模式全景
+
+| 模式 | 适配器 | 环境 | 核心评估维度 | 适用场景 |
+|------|--------|------|------------|---------|
+| **工具调用 Agent** | `openai_fc` | `mock_db` | state_match, action_match, info_delivery | 有函数调用能力的 API Agent |
+| **多轮对话 Agent** | `openai_fc` + `scripted`/`llm` user | `mock_db` | + nl_assertion | 需要与用户多轮交互的 Agent |
+| **黑盒 HTTP Agent** | `http_bot` | `passthrough` | info_delivery, llm_judge | 只能通过 HTTP 接口访问的 Agent |
+
+```
+模式一：工具调用（白盒）
+  用户消息 → Agent(openai_fc) → 工具调用 → mock_db → 评估状态变更
+
+模式二：多轮对话（半白盒）
+  用户消息 → Agent ↔ User(scripted/llm) → 工具调用 → mock_db → 评估状态+断言
+
+模式三：黑盒 HTTP（纯黑盒）
+  用户消息 → Agent(http_bot) → 纯文本回复 → passthrough → 评估回复质量
+```
+
+### 8.2 HTTP Bot 黑盒评估
+
+当被评估的 Agent 只暴露了一个 HTTP 接口（如企业内部的对话 Bot），我们无法观察其内部工具调用和状态变更。HTTP Bot 适配器解决了这个问题：
+
+**三种历史模式**：
+
+| 模式 | 说明 | 适用场景 |
+|------|------|---------|
+| `last` | 只发最后一条消息 | Bot 自己管理上下文 |
+| `history` | 发完整对话历史 | 无状态 Bot，需要接收完整历史 |
+| `session` | 用 session_id 管理会话 | Bot 通过 session 维护上下文 |
+
+**配置示例**：
+
+```yaml
+agent:
+  adapter: http_bot
+  url: "http://bot-service:8080/chat"
+  history_mode: last
+  request_field: query        # 请求体中消息字段名
+  reply_field: data.reply     # 支持嵌套 JSON 路径解析
+  max_retries: 3
+  retry_delay: 1.0
+```
+
+**评估策略**：无工具调用 → 用 `passthrough` 环境（无状态变更）→ 评估聚焦于 `info_delivery`（必要信息是否传达）和 `llm_judge`（回复质量打分）。
+
+### 8.3 eval_bot：飞书评测 Bot
+
+为了让团队成员更方便地触发评测，我们构建了一个飞书 Bot（`eval_bot/`），通过自然语言交互即可完成评测操作。
+
+**架构**：
+
+```
+飞书消息 → Webhook(FastAPI) → Dispatcher(LLM 意图识别)
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+              quick_eval      query_results    gen_scenarios
+              (异步评测)       (查询结果)       (生成场景)
+                    │
+                    ▼
+              TaskRunner(线程池) → 完成后回调 → 推送飞书消息
+```
+
+**三个核心命令**：
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `quick_eval` | 对 HTTP Bot 发起快速评测 | "帮我测一下客服 Bot" |
+| `query_results` | 查询历史评测结果 | "上次评测结果怎么样？" |
+| `gen_scenarios` | 为业务领域生成测试场景 | "帮我生成电商客服的测试用例" |
+
+**关键设计**：
+- **Dispatcher** 使用智谱 function calling 识别用户意图，路由到对应命令
+- **TaskRunner** 线程池异步执行评测，不阻塞飞书消息响应
+- 评测完成后自动将结果推回飞书群，包含分数摘要和报告链接
+
+### 8.4 架构验证：core/ 零修改
+
+从 Step 1（核心骨架）到 Step 4（eval_bot），`core/` 目录下的四个文件（`types.py`、`base.py`、`registry.py`、`orchestrator.py`）始终保持零修改。这验证了插件化架构的核心价值：
+
+```
+新增的所有组件：
+  adapters/http_bot.py         ← @registry.adapter("http_bot")
+  environments/passthrough.py  ← @registry.environment("passthrough")
+  evaluators/llm_judge.py      ← @registry.evaluator("llm_judge")
+  evaluators/nl_assertion.py   ← @registry.evaluator("nl_assertion")
+  users/scripted_user.py       ← @registry.user("scripted")
+  users/llm_user.py            ← @registry.user("llm")
+  eval_bot/                    ← 独立模块，调用框架 API
+
+核心引擎修改：0 个文件
+```
+
+---
+
 ## 附录：参考资料
 
 - AgentBoard (HKUST) — NeurIPS 2024 Oral — 9 类任务、6 维能力画像、进度率追踪

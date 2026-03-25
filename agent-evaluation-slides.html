@@ -11,10 +11,8 @@
 <style>
 /* ===========================================
    CSS CUSTOM PROPERTIES (SWISS MODERN THEME)
-   Change these to change the whole look
    =========================================== */
 :root {
-    /* Colors */
     --bg-primary: #ffffff;
     --bg-dark: #0a0a0a;
     --bg-warm: #f7f6f4;
@@ -26,7 +24,6 @@
     --accent-medium: rgba(255, 51, 0, 0.15);
     --border: rgba(10, 10, 10, 0.08);
 
-    /* Typography — MUST use clamp() */
     --font-display: 'Archivo', sans-serif;
     --font-body: 'Nunito', sans-serif;
     --title-size: clamp(1.8rem, 5vw, 4rem);
@@ -36,24 +33,19 @@
     --small-size: clamp(0.6rem, 0.9vw, 0.8rem);
     --code-size: clamp(0.65rem, 1vw, 0.85rem);
 
-    /* Spacing — MUST use clamp() */
     --slide-padding: clamp(1.5rem, 5vw, 5rem);
     --content-gap: clamp(0.75rem, 2vw, 2rem);
     --element-gap: clamp(0.25rem, 1vw, 1rem);
 
-    /* Animation */
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --duration: 0.6s;
 }
 
 /* ===========================================
-   BASE RESET
+   VIEWPORT FITTING: MANDATORY BASE STYLES
    =========================================== */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-/* ===========================================
-   VIEWPORT FITTING: MANDATORY BASE STYLES
-   =========================================== */
 html, body {
     height: 100%;
     overflow-x: hidden;
@@ -103,7 +95,6 @@ img, .image-container {
     object-fit: contain;
 }
 
-/* Short viewports */
 @media (max-height: 700px) {
     :root {
         --slide-padding: clamp(0.75rem, 3vw, 2rem);
@@ -144,15 +135,12 @@ img, .image-container {
 /* ===========================================
    SWISS MODERN: SLIDE STYLES
    =========================================== */
-
-/* --- Shared slide structure --- */
 .slide {
     background: var(--bg-primary);
     font-family: var(--font-body);
     color: var(--text-primary);
 }
 
-/* --- Accent bar (left edge) --- */
 .slide::before {
     content: '';
     position: absolute; left: 0; top: 0;
@@ -162,7 +150,6 @@ img, .image-container {
     z-index: 10;
 }
 
-/* --- Grid overlay --- */
 .slide::after {
     content: '';
     position: absolute; inset: 0;
@@ -172,7 +159,6 @@ img, .image-container {
     opacity: 0.5;
 }
 
-/* --- Slide number --- */
 .slide-num {
     position: absolute;
     top: clamp(1rem, 3vh, 2rem);
@@ -184,7 +170,6 @@ img, .image-container {
     z-index: 5;
 }
 
-/* --- Section label --- */
 .section-label {
     font-family: var(--font-display);
     font-weight: 800;
@@ -195,7 +180,6 @@ img, .image-container {
     margin-bottom: clamp(0.5rem, 1.5vh, 1rem);
 }
 
-/* --- Headings --- */
 h1, h2, h3 {
     font-family: var(--font-display);
     font-weight: 800;
@@ -205,10 +189,8 @@ h1 { font-size: var(--title-size); }
 h2 { font-size: var(--h2-size); }
 h3 { font-size: var(--h3-size); font-weight: 700; }
 
-/* --- Body text --- */
 p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-secondary); }
 
-/* --- Reveal animation --- */
 .reveal {
     opacity: 0;
     transform: translateY(clamp(15px, 3vh, 30px));
@@ -245,18 +227,10 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     height: clamp(2px, 0.3vw, 4px);
     background: var(--accent);
 }
-.geo-dot {
-    width: clamp(6px, 0.8vw, 10px);
-    height: clamp(6px, 0.8vw, 10px);
-    background: var(--accent);
-    border-radius: 50%;
-}
 
 /* ===========================================
    CONTENT COMPONENTS
    =========================================== */
-
-/* --- Tables --- */
 .data-table {
     width: 100%;
     border-collapse: collapse;
@@ -281,7 +255,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
 }
 .data-table tr:last-child td { border-bottom: none; }
 
-/* --- Code blocks --- */
 .code-block {
     background: var(--bg-dark);
     color: #e8e8e8;
@@ -300,7 +273,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
 .code-block .yellow { color: #dcdcaa; }
 .code-block .blue { color: #569cd6; }
 
-/* --- Cards grid --- */
 .cards-grid {
     display: grid;
     gap: clamp(0.5rem, 1.2vw, 1rem);
@@ -324,7 +296,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     color: var(--text-secondary);
 }
 
-/* --- Highlight box --- */
 .highlight-box {
     background: var(--accent-light);
     border-left: clamp(3px, 0.4vw, 5px) solid var(--accent);
@@ -335,7 +306,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     font-weight: 600;
 }
 
-/* --- Pill tag --- */
 .pill {
     display: inline-block;
     font-family: var(--font-display);
@@ -348,7 +318,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     color: #fff;
 }
 
-/* --- Two-column layout --- */
 .two-col {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -356,7 +325,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     align-items: start;
 }
 
-/* --- Comparison columns --- */
 .vs-container {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
@@ -369,7 +337,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     background: var(--border);
 }
 
-/* --- Diagram container --- */
 .diagram {
     background: var(--bg-warm);
     border-radius: clamp(4px, 0.4vw, 8px);
@@ -383,7 +350,7 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
 }
 
 /* ===========================================
-   PROGRESS BAR
+   PROGRESS BAR & NAV DOTS
    =========================================== */
 .progress-bar {
     position: fixed;
@@ -395,9 +362,6 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
     width: 0%;
 }
 
-/* ===========================================
-   NAVIGATION DOTS
-   =========================================== */
 .nav-dots {
     position: fixed;
     right: clamp(0.75rem, 2vw, 1.5rem);
@@ -570,14 +534,14 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
         <div class="geo geo-line" style="width:clamp(50px,8vw,120px);top:clamp(5rem,16vh,12rem);right:clamp(1rem,4vw,4rem);"></div>
 
         <div class="section-label reveal">Technical Sharing</div>
-        <h1 class="reveal">AI Agent<br>评估体系</h1>
-        <p class="title-subtitle reveal">维度、机制与实践</p>
-        <div class="title-meta reveal">
+        <h1 class="reveal" style="padding-left:clamp(2rem,6vw,6rem);">AI Agent<br>评估体系</h1>
+        <p class="title-subtitle reveal" style="padding-left:clamp(2rem,6vw,6rem);">维度、机制与实践</p>
+        <div class="title-meta reveal" style="padding-left:clamp(2rem,6vw,6rem);">
             <span>小组内部技术分享</span>
-            <span>2026-03-19</span>
+            <span>2026-03-20</span>
         </div>
     </div>
-    <span class="slide-num">01 / 16</span>
+    <span class="slide-num">01 / 14</span>
 </section>
 
 <!-- ============================================
@@ -608,7 +572,7 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
             </div>
         </div>
     </div>
-    <span class="slide-num">02 / 16</span>
+    <span class="slide-num">02 / 14</span>
 </section>
 
 <!-- ============================================
@@ -634,7 +598,7 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
             这些问题只有通过系统性的多维度评估才能发现 — 仅靠人工试用远远不够。
         </div>
     </div>
-    <span class="slide-num">03 / 16</span>
+    <span class="slide-num">03 / 14</span>
 </section>
 
 <!-- ============================================
@@ -664,7 +628,7 @@ p, li { font-size: var(--body-size); line-height: 1.55; color: var(--text-second
         <div class="diagram reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(95%,950px);font-size:var(--small-size);line-height:1.4;">State Match  Action Match  Info Delivery  LLM Judge  NL Assertion  Pass^k
   <span style="color:var(--accent);">做对了吗</span>      <span style="color:var(--accent);">走对路吗</span>      <span style="color:#0066cc;">说清楚吗</span>      <span style="color:#0066cc;">表达好吗</span>    <span style="color:#00994d;">守规矩吗</span>     <span style="color:#00994d;">稳得住吗</span></div>
     </div>
-    <span class="slide-num">04 / 16</span>
+    <span class="slide-num">04 / 14</span>
 </section>
 
 <!-- ============================================
@@ -699,7 +663,7 @@ hash_gold == hash_pred ?
   <span class="accent">→ 0~1</span> 子集匹配 fallback</div>
         </div>
     </div>
-    <span class="slide-num">05 / 16</span>
+    <span class="slide-num">05 / 14</span>
 </section>
 
 <!-- ============================================
@@ -735,7 +699,7 @@ expected = [
             </div>
         </div>
     </div>
-    <span class="slide-num">06 / 16</span>
+    <span class="slide-num">06 / 14</span>
 </section>
 
 <!-- ============================================
@@ -772,7 +736,7 @@ expected = [
             </div>
         </div>
     </div>
-    <span class="slide-num">07 / 16</span>
+    <span class="slide-num">07 / 14</span>
 </section>
 
 <!-- ============================================
@@ -803,7 +767,7 @@ expected = [
             你不会信任一个"有时能正确写代码，有时写出 bug"的编码 Agent。
         </div>
     </div>
-    <span class="slide-num">08 / 16</span>
+    <span class="slide-num">08 / 14</span>
 </section>
 
 <!-- ============================================
@@ -835,32 +799,32 @@ Agent D: (什么都没做)          <span style="color:#999;">PR=0.0</span></div
             </div>
         </div>
     </div>
-    <span class="slide-num">09 / 16</span>
+    <span class="slide-num">09 / 14</span>
 </section>
 
 <!-- ============================================
-     SLIDE 10: SCORING - PRODUCT VS AVERAGE
+     SLIDE 10: SCORING - PRODUCT VS AVERAGE (MERGED)
      ============================================ -->
 <section class="slide slide-dark" data-slide="9">
     <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
         <div class="section-label reveal">Part 03</div>
-        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">乘积 vs 加权平均？</h2>
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">为什么用乘积而非加权平均？</h2>
         <div class="vs-container reveal" style="max-width:min(95%,900px);">
             <div>
                 <h3 style="color:#999;margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">加权平均</h3>
                 <div class="code-block" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.5;">
-<span class="dim">0.4 x state + 0.3 x action + 0.3 x info</span>
+<span class="dim">0.4×state + 0.3×action + 0.3×info</span>
 
 state=<span class="accent">0</span>, action=1.0, info=1.0
 overall = <span class="yellow">0.6</span>
 
-<span class="dim">什么都没做对，还能拿 60 分？</span></div>
+<span class="dim">什么都没做对，还能 60 分？</span></div>
             </div>
             <div class="vs-divider" style="background:rgba(255,255,255,0.15);"></div>
             <div>
                 <h3 style="color:var(--accent);margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">乘积组合 ✓</h3>
                 <div class="code-block" style="font-size:clamp(0.5rem,0.8vw,0.7rem);line-height:1.5;">
-<span class="dim">state x action x info</span>
+<span class="dim">state × action × info</span>
 
 state=<span class="accent">0</span>, action=1.0, info=1.0
 overall = <span class="accent">0.0</span>
@@ -868,62 +832,30 @@ overall = <span class="accent">0.0</span>
 <span class="green">任一维度为零，总分归零。</span></div>
             </div>
         </div>
-        <div class="highlight-box reveal" style="margin-top:clamp(0.75rem,2vh,1.5rem);max-width:min(95%,900px);">
-            Agent 的各评估维度之间是"与"关系，不是"或"关系。— &tau;&sup2;-Bench
-        </div>
+        <table class="data-table reveal" style="max-width:min(95%,900px);margin-top:clamp(0.5rem,1.2vh,0.8rem);">
+            <thead>
+                <tr><th>场景</th><th>state</th><th>action</th><th>info</th><th>overall</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>代码写对但没解释</td><td>1.0</td><td>1.0</td><td style="color:var(--accent);font-weight:700;">0.0</td><td style="font-weight:700;color:var(--accent);">0.0</td></tr>
+                <tr><td>解释清楚但没执行</td><td style="color:var(--accent);font-weight:700;">0.0</td><td style="color:var(--accent);font-weight:700;">0.0</td><td>1.0</td><td style="font-weight:700;color:var(--accent);">0.0</td></tr>
+                <tr><td>查询正确，解释清楚</td><td>1.0</td><td>1.0</td><td>1.0</td><td style="font-weight:700;color:#4ec9b0;">1.0</td></tr>
+                <tr><td>操作正确但漏了步骤</td><td>1.0</td><td style="font-weight:700;">0.5</td><td>1.0</td><td style="font-weight:700;">0.5</td></tr>
+            </tbody>
+        </table>
     </div>
-    <span class="slide-num">10 / 16</span>
+    <span class="slide-num">10 / 14</span>
 </section>
 
 <!-- ============================================
-     SLIDE 11: SCORING EXAMPLES
+     SLIDE 11: ARCHITECTURE - LOOP
      ============================================ -->
 <section class="slide" data-slide="10">
     <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
-        <div class="section-label reveal">评分实例</div>
-        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">乘积组合的严格性</h2>
-        <table class="data-table reveal" style="max-width:min(95%,900px);">
-            <thead>
-                <tr><th>场景</th><th>state</th><th>action</th><th>info</th><th>overall</th><th>判定</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>代码写对但没解释</td>
-                    <td>1.0</td><td>1.0</td><td style="color:var(--accent);font-weight:700;">0.0</td>
-                    <td style="font-weight:700;">0.0</td><td style="color:var(--accent);">不合格</td>
-                </tr>
-                <tr>
-                    <td>解释清楚但没执行</td>
-                    <td style="color:var(--accent);font-weight:700;">0.0</td><td style="color:var(--accent);font-weight:700;">0.0</td><td>1.0</td>
-                    <td style="font-weight:700;">0.0</td><td style="color:var(--accent);">不合格</td>
-                </tr>
-                <tr>
-                    <td>查询正确，解释清楚</td>
-                    <td>1.0</td><td>1.0</td><td>1.0</td>
-                    <td style="font-weight:700;color:#00994d;">1.0</td><td style="color:#00994d;">合格</td>
-                </tr>
-                <tr>
-                    <td>操作正确但漏了步骤</td>
-                    <td>1.0</td><td style="font-weight:700;">0.5</td><td>1.0</td>
-                    <td style="font-weight:700;">0.5</td><td>部分合格</td>
-                </tr>
-            </tbody>
-        </table>
-        <p class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(90%,700px);">
-            <strong style="color:var(--text-primary);">注意：</strong>多个维度都是 0.8 时，乘积会快速衰减（0.8⁵ = 0.33）。实践中通过选择合适的评估器组合来控制严格程度。
-        </p>
-    </div>
-    <span class="slide-num">11 / 16</span>
-</section>
-
-<!-- ============================================
-     SLIDE 12: ARCHITECTURE - LOOP
-     ============================================ -->
-<section class="slide slide-dark" data-slide="11">
-    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
         <div class="section-label reveal">Part 04</div>
-        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">Agent-Environment 交互循环</h2>
-        <div class="diagram reveal" style="max-width:min(95%,700px);font-size:clamp(0.55rem,0.9vw,0.8rem);line-height:1.5;background:rgba(255,255,255,0.05);color:#ddd;">
+        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">通用评估架构：Agent-Environment 循环</h2>
+        <div class="two-col reveal" style="max-width:min(95%,950px);">
+            <div class="diagram" style="font-size:clamp(0.55rem,0.9vw,0.8rem);line-height:1.5;">
          ┌──────────┐
 初始化 → │  <span style="color:var(--accent);">Agent</span>   │ ←──────┐
          │ (被评估者) │        │
@@ -943,58 +875,31 @@ overall = <span class="accent">0.0</span>
          │ <span style="color:#dcdcaa;">Evaluators</span>  │
          │ (多维度评分)  │
          └──────────────┘</div>
-        <p class="reveal" style="margin-top:clamp(0.5rem,1.5vh,1rem);max-width:min(90%,650px);">
-            这个循环是通用的 — 区别在于 Agent 用什么适配器、Environment 提供什么工具、Evaluators 关注哪些维度。
-        </p>
-    </div>
-    <span class="slide-num">12 / 16</span>
-</section>
-
-<!-- ============================================
-     SLIDE 13: PLUGIN ARCHITECTURE
-     ============================================ -->
-<section class="slide" data-slide="12">
-    <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
-        <div class="section-label reveal">插件化设计</div>
-        <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">注册表模式：完全解耦</h2>
-        <div class="two-col reveal" style="max-width:min(95%,950px);">
-            <div class="code-block" style="font-size:clamp(0.5rem,0.85vw,0.75rem);line-height:1.5;">
-<span class="dim">┌── 不变的框架核心 ──┐</span>
-│ <span class="yellow">Orchestrator</span>         │
-│   驱动交互循环        │
-│ <span class="yellow">Registry</span>             │
-│   插件注册表          │
-│ <span class="yellow">Report</span>               │
-│   评估报告生成        │
-<span class="dim">├── 可插拔的扩展 ────┤</span>
-│ <span class="accent">@registry.adapter</span>    │
-│ <span class="accent">@registry.environment</span>│
-│ <span class="accent">@registry.evaluator</span>  │
-│ <span class="accent">@registry.user</span>       │
-<span class="dim">└────────────────────┘</span></div>
             <div>
-                <div class="info-card" style="margin-bottom:clamp(0.3rem,0.8vh,0.5rem);">
-                    <h3>核心价值</h3>
-                    <p>新增 Agent 类型或评估维度只需添加一个文件 + 一个装饰器，不需要修改框架核心代码</p>
-                </div>
+                <p style="margin-bottom:clamp(0.5rem,1.2vh,0.8rem);">
+                    这个循环是<strong style="color:var(--text-primary);">通用的</strong> — 区别只在于三个维度的具体实现：
+                </p>
                 <table class="data-table" style="font-size:var(--small-size);">
-                    <thead><tr><th>Agent 类型</th><th>适配器</th><th>核心评估</th></tr></thead>
+                    <thead><tr><th>维度</th><th>变化点</th></tr></thead>
                     <tbody>
-                        <tr><td>工具调用</td><td>openai_fc</td><td>state + action</td></tr>
-                        <tr><td>对话</td><td>http_bot</td><td>info + llm_judge</td></tr>
-                        <tr><td>黑盒</td><td>http_bot</td><td>llm_judge + nl</td></tr>
+                        <tr><td><strong>Agent</strong></td><td>API 调用？HTTP 接口？本地进程？</td></tr>
+                        <tr><td><strong>Environment</strong></td><td>数据库？文件系统？浏览器？</td></tr>
+                        <tr><td><strong>Evaluators</strong></td><td>状态匹配？测试通过率？回复质量？</td></tr>
                     </tbody>
                 </table>
+                <div class="highlight-box" style="margin-top:clamp(0.3rem,0.8vh,0.5rem);font-size:var(--small-size);">
+                    核心是可插拔设计：新增 Agent 类型或评估维度只需添加实现，不修改框架
+                </div>
             </div>
         </div>
     </div>
-    <span class="slide-num">13 / 16</span>
+    <span class="slide-num">11 / 14</span>
 </section>
 
 <!-- ============================================
-     SLIDE 14: EVALUATION METHODS
+     SLIDE 12: EVALUATION METHODS
      ============================================ -->
-<section class="slide slide-dark" data-slide="13">
+<section class="slide slide-dark" data-slide="11">
     <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
         <div class="section-label reveal">评估方法分类</div>
         <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">确定性 vs LLM-as-Judge</h2>
@@ -1025,13 +930,13 @@ overall = <span class="accent">0.0</span>
             能用确定性评估的优先用确定性评估（更便宜、更可复现）；无法用规则衡量的维度才用 LLM-as-Judge。
         </div>
     </div>
-    <span class="slide-num">14 / 16</span>
+    <span class="slide-num">12 / 14</span>
 </section>
 
 <!-- ============================================
-     SLIDE 15: PRACTICAL GUIDE
+     SLIDE 13: PRACTICAL GUIDE
      ============================================ -->
-<section class="slide" data-slide="14">
+<section class="slide" data-slide="12">
     <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
         <div class="section-label reveal">Part 05</div>
         <h2 class="reveal" style="margin-bottom:clamp(0.5rem,1.5vh,1rem);">实践建议</h2>
@@ -1062,13 +967,13 @@ overall = <span class="accent">0.0</span>
             </div>
         </div>
     </div>
-    <span class="slide-num">15 / 16</span>
+    <span class="slide-num">13 / 14</span>
 </section>
 
 <!-- ============================================
-     SLIDE 16: SUMMARY
+     SLIDE 14: SUMMARY
      ============================================ -->
-<section class="slide slide-dark" data-slide="15">
+<section class="slide slide-dark" data-slide="13">
     <div class="slide-content" style="padding-left:clamp(4rem,10vw,10rem);">
         <!-- Geometric decorations -->
         <div class="geo geo-circle" style="width:clamp(100px,16vw,240px);height:clamp(100px,16vw,240px);bottom:clamp(2rem,8vh,6rem);right:clamp(3rem,8vw,8rem);border-color:rgba(255,51,0,0.3);"></div>
@@ -1104,7 +1009,7 @@ overall = <span class="accent">0.0</span>
             <span style="color:#666;">AgentBoard · AgentBench · &tau;&sup2;-Bench</span>
         </div>
     </div>
-    <span class="slide-num">16 / 16</span>
+    <span class="slide-num">14 / 14</span>
 </section>
 
 <!-- ===========================================
@@ -1125,7 +1030,6 @@ class SlidePresentation {
         this.setupNavDots();
     }
 
-    /* --- Intersection Observer: trigger .visible on scroll --- */
     setupIntersectionObserver() {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -1144,7 +1048,6 @@ class SlidePresentation {
         this.slides.forEach(slide => observer.observe(slide));
     }
 
-    /* --- Keyboard: arrows, space, page up/down --- */
     setupKeyboardNav() {
         document.addEventListener('keydown', (e) => {
             if (e.target.getAttribute('contenteditable')) return;
@@ -1159,7 +1062,6 @@ class SlidePresentation {
         });
     }
 
-    /* --- Touch/swipe --- */
     setupTouchNav() {
         let startY = 0;
         document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
@@ -1171,7 +1073,6 @@ class SlidePresentation {
         }, { passive: true });
     }
 
-    /* --- Mouse wheel --- */
     setupWheelNav() {
         let timeout;
         document.addEventListener('wheel', (e) => {
@@ -1184,7 +1085,6 @@ class SlidePresentation {
         }, { passive: true });
     }
 
-    /* --- Progress bar --- */
     setupProgressBar() {
         this.progressBar = document.getElementById('progressBar');
         this.updateProgressBar();
@@ -1196,7 +1096,6 @@ class SlidePresentation {
         this.progressBar.style.width = pct + '%';
     }
 
-    /* --- Navigation dots --- */
     setupNavDots() {
         const nav = document.getElementById('navDots');
         if (!nav) return;
@@ -1215,7 +1114,6 @@ class SlidePresentation {
         this.dots.forEach((dot, i) => dot.classList.toggle('active', i === this.currentSlide));
     }
 
-    /* --- Navigate to slide --- */
     goToSlide(index) {
         if (index < 0 || index >= this.slides.length) return;
         this.isScrolling = true;
@@ -1272,7 +1170,6 @@ class InlineEditor {
 const presentation = new SlidePresentation();
 const editor = new InlineEditor();
 
-/* Hotzone hover with 400ms grace period */
 const hotzone = document.getElementById('editHotzone');
 const editToggle = document.getElementById('editToggle');
 let hideTimeout = null;
@@ -1293,11 +1190,9 @@ editToggle.addEventListener('mouseleave', () => {
     }, 400);
 });
 
-/* Click handlers */
 editToggle.addEventListener('click', () => editor.toggleEditMode());
 hotzone.addEventListener('click', () => editor.toggleEditMode());
 
-/* Keyboard: E to toggle edit, Ctrl+S to save */
 document.addEventListener('keydown', (e) => {
     if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) {
         editor.toggleEditMode();

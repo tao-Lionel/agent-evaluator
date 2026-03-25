@@ -1,0 +1,140 @@
+[
+  {
+    "id": "1",
+    "description": "最简单的正常请求",
+    "difficulty": "easy",
+    "single_turn": true,
+    "initial_message": {
+      "topic": "会议组织"
+    },
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [],
+    "nl_assertions": [
+      "响应结构包含task_id",
+      "响应结构包含slides",
+      "响应结构包含theme",
+      "内容与请求主题会议组织相关",
+      "内容质量达标"
+    ]
+  },
+  {
+    "id": "2",
+    "description": "典型使用场景",
+    "difficulty": "easy",
+    "single_turn": true,
+    "initial_message": {
+      "topic": "市场营销策略",
+      "requirements": "需要包含目标市场分析和竞争对手分析",
+      "page_count": 20
+    },
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [],
+    "nl_assertions": [
+      "响应结构包含task_id",
+      "响应结构包含slides",
+      "响应结构包含theme",
+      "内容包含目标市场分析和竞争对手分析",
+      "内容质量达标",
+      "响应包含20页内容"
+    ]
+  },
+  {
+    "id": "3",
+    "description": "包含详细要求的复杂需求",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": {
+      "topic": "产品发布计划",
+      "requirements": "需要包括市场推广策略、技术细节和风险评估",
+      "materials": "提供产品手册和营销资料",
+      "theme": "dark",
+      "page_count": 15
+    },
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [],
+    "nl_assertions": [
+      "响应结构包含task_id",
+      "响应结构包含slides",
+      "响应结构包含theme",
+      "内容包含市场推广策略、技术细节和风险评估",
+      "内容质量达标",
+      "响应包含15页内容",
+      "主题为dark"
+    ]
+  },
+  {
+    "id": "4",
+    "description": "特殊输入的边界情况",
+    "difficulty": "medium",
+    "single_turn": true,
+    "initial_message": {
+      "topic": "快速移动",
+      "requirements": "使用特殊字符@#",
+      "page_count": 5
+    },
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [],
+    "nl_assertions": [
+      "响应结构包含task_id",
+      "响应结构包含slides",
+      "响应结构包含theme",
+      "内容使用特殊字符@#",
+      "内容质量达标",
+      "响应包含5页内容"
+    ]
+  },
+  {
+    "id": "5",
+    "description": "专业性强的请求",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": {
+      "topic": "金融风险评估模型",
+      "requirements": "需要包括历史数据分析和预测模型",
+      "materials": "提供财务报表和行业报告",
+      "theme": "business-dark",
+      "output_format": "pdf"
+    },
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [],
+    "nl_assertions": [
+      "响应结构包含task_id",
+      "响应结构包含slides",
+      "响应结构包含theme",
+      "内容包含历史数据分析和预测模型",
+      "内容质量达标",
+      "输出格式为pdf",
+      "主题为business-dark"
+    ]
+  },
+  {
+    "id": "6",
+    "description": "模糊/困难的请求",
+    "difficulty": "hard",
+    "single_turn": true,
+    "initial_message": {
+      "topic": "未来科技趋势",
+      "requirements": "需要探讨人工智能、物联网和区块链等领域的未来趋势",
+      "materials": "提供相关研究报告和专家访谈",
+      "theme": "futuristic",
+      "page_count": 25
+    },
+    "initial_state": {},
+    "max_steps": 1,
+    "required_info": [],
+    "nl_assertions": [
+      "响应结构包含task_id",
+      "响应结构包含slides",
+      "响应结构包含theme",
+      "内容探讨人工智能、物联网和区块链等领域的未来趋势",
+      "内容质量达标",
+      "响应包含25页内容",
+      "主题为futuristic"
+    ]
+  }
+]

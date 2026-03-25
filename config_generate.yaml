@@ -1,0 +1,25 @@
+agent:
+  adapter: http_bot
+  bot_url: http://localhost:8000/api/generate
+  request_template:
+    topic: ${initial_message}
+    requirements: ${description}
+    materials: ''
+    theme: business-light
+    page_count: 10
+    output_format: web
+  reply_field: .
+  timeout: 600
+  max_retries: 2
+  retry_delay: 3.0
+environment:
+  type: passthrough
+evaluators:
+  - name: llm_judge
+    model: glm-5
+  - name: nl_assertion
+    model: glm-5
+scenarios: scenarios/generate_tasks.json
+run:
+  num_trials: 1
+  log_level: INFO
