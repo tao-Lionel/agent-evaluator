@@ -11,11 +11,6 @@ from core.registry import registry
 
 logger = logging.getLogger(__name__)
 
-
-def _strip_think(text: str) -> str:
-    """Remove <think>...</think> blocks from model output."""
-    return re.sub(r"<think>[\s\S]*?</think>\s*", "", text).strip()
-
 JUDGE_SYSTEM_PROMPT = """\
 You are an expert evaluator assessing the quality of a chatbot's response.
 Score the response on a scale of 1-5:
@@ -92,7 +87,7 @@ class LLMJudgeEvaluator(Evaluator):
                 max_tokens=self.max_tokens,
             )
             judge_text = response.choices[0].message.content or ""
-            self.last_reason = _strip_think(judge_text)
+            self.last_reason = judge_text
             score = self._parse_score(judge_text)
             if score < 0:
                 logger.warning("LLMJudge for %s: INSUFFICIENT_INFO — returning 0.5\n%s", task.id, judge_text)
