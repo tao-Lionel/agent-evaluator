@@ -12,7 +12,7 @@ from core.registry import registry
 
 logger = logging.getLogger(__name__)
 
-JUDGE_SYSTEM_PROMPT = """\
+JUDGE_SYSTEM_PROMPT_DB = """\
 You are a database state verifier. You will receive the current database state \
 and a list of assertions to check. For each assertion, determine if it PASSES \
 or FAILS based on the actual data.
@@ -23,14 +23,34 @@ Respond with one line per assertion in this exact format:
 
 Nothing else."""
 
-JUDGE_USER_TEMPLATE = """\
+JUDGE_SYSTEM_PROMPT_RESPONSE = """\
+You are an AI response verifier. You will receive an agent's response content \
+and a list of assertions to check. For each assertion, determine if it PASSES \
+or FAILS based on the actual response.
+
+Respond with one line per assertion in this exact format:
+[PASS] assertion text - brief reason
+[FAIL] assertion text - brief reason
+
+Nothing else."""
+
+JUDGE_USER_TEMPLATE_DB = """\
 ## Current Database State
-{db_state}
+{context}
 
 ## Assertions to Verify
 {assertions}
 
 Check each assertion against the database state above."""
+
+JUDGE_USER_TEMPLATE_RESPONSE = """\
+## Agent Response
+{context}
+
+## Assertions to Verify
+{assertions}
+
+Check each assertion against the agent's response above."""
 
 
 @registry.evaluator("nl_assertion")
@@ -62,16 +82,32 @@ class NLAssertionEvaluator(Evaluator):
         if not assertions:
             return 1.0  # no assertions to check
 
+        # Determine context: DB state or agent response
         db = getattr(env, "db", None)
-        if db is None:
-            logger.warning("NLAssertion: env has no .db attribute")
-            return 0.0
+        if db is not None:
+            context = json.dumps(db, ensure_ascii=False, indent=2)
+            system_prompt = JUDGE_SYSTEM_PROMPT_DB
+            user_template = JUDGE_USER_TEMPLATE_DB
+        else:
+            # No DB — use agent response content for assertion checking
+            from core.types import Role
+            agent_texts = [
+                msg.content if isinstance(msg.content, str)
+                else json.dumps(msg.content, ensure_ascii=False)
+                for msg in trajectory
+                if msg.role == Role.AGENT and msg.content
+            ]
+            if not agent_texts:
+                logger.warning("NLAssertion: no agent response to check")
+                return 0.0
+            context = "\n".join(agent_texts)
+            system_prompt = JUDGE_SYSTEM_PROMPT_RESPONSE
+            user_template = JUDGE_USER_TEMPLATE_RESPONSE
 
-        db_state = json.dumps(db, ensure_ascii=False, indent=2)
         assertion_text = "\n".join(f"{i+1}. {a}" for i, a in enumerate(assertions))
 
-        prompt = JUDGE_USER_TEMPLATE.format(
-            db_state=db_state,
+        prompt = user_template.format(
+            context=context,
             assertions=assertion_text,
         )
 
@@ -79,7 +115,7 @@ class NLAssertionEvaluator(Evaluator):
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.0,
