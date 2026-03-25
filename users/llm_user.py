@@ -33,11 +33,13 @@ class LLMUserSimulator(UserSimulator):
         api_key: str | None = None,
         base_url: str | None = None,
         temperature: float = 0.7,
+        max_tokens: int = 256,
         **kwargs,
     ):
         import os
         self.model = model
         self.temperature = temperature
+        self.max_tokens = max_tokens
         self.client = OpenAI(
             api_key=api_key or os.getenv("ZHIPU_API_KEY", ""),
             base_url=base_url or "https://open.bigmodel.cn/api/paas/v4",
@@ -57,7 +59,7 @@ class LLMUserSimulator(UserSimulator):
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
-                max_tokens=256,
+                max_tokens=self.max_tokens,
             )
             reply = response.choices[0].message.content or ""
         except Exception as e:

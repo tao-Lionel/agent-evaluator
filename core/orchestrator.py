@@ -31,11 +31,13 @@ class Orchestrator:
         env: Environment,
         evaluators: dict[str, Evaluator],
         user: UserSimulatorType | None = None,
+        on_progress=None,
     ):
         self.agent = agent
         self.env = env
         self.evaluators = evaluators
         self.user = user
+        self.on_progress = on_progress
 
     def run(self, task: Task) -> EvalResult:
         start = time.time()
@@ -133,6 +135,11 @@ class Orchestrator:
         # ── Evaluation ──
         scores: dict[str, float] = {}
         for name, evaluator in self.evaluators.items():
+            if self.on_progress:
+                try:
+                    self.on_progress("eval_start", {"name": name})
+                except Exception:
+                    pass
             try:
                 scores[name] = evaluator.evaluate(task, trajectory, self.env)
             except Exception as e:

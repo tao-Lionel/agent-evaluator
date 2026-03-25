@@ -57,9 +57,13 @@ class LLMJudgeEvaluator(Evaluator):
         model: str = "glm-4-flash",
         api_key: str | None = None,
         base_url: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 1024,
     ):
         import os
         self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         self.client = OpenAI(
             api_key=api_key or os.getenv("ZHIPU_API_KEY", ""),
             base_url=base_url or "https://open.bigmodel.cn/api/paas/v4",
@@ -75,8 +79,8 @@ class LLMJudgeEvaluator(Evaluator):
                     {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.0,
-                max_tokens=512,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
             )
             judge_text = response.choices[0].message.content or ""
             score = self._parse_score(judge_text)
@@ -109,8 +113,17 @@ class LLMJudgeEvaluator(Evaluator):
         """Parse score from judge response. Returns 0.0-1.0, or -1.0 for INSUFFICIENT_INFO."""
         if re.search(r"SCORE:\s*INSUFFICIENT_INFO", text, re.IGNORECASE):
             return -1.0
+        # Primary: look for "SCORE: N"
         match = re.search(r"SCORE:\s*(\d)", text)
         if match:
             raw = int(match.group(1))
             return max(0.0, min(1.0, raw / 5.0))
+        # Fallback: model may output score in other formats (e.g. truncated output)
+        fallback = re.search(r"(?:score|评分)[:\s]*(\d)\s*(?:/\s*5)?", text, re.IGNORECASE)
+        if fallback:
+            raw = int(fallback.group(1))
+            logger.warning("LLMJudge: parsed score via fallback pattern: %d/5", raw)
+            return max(0.0, min(1.0, raw / 5.0))
+        logger.warning("LLMJudge: could not parse score from response (len=%d), returning 0. "
+                        "Tail: ...%s", len(text), text[-100:] if text else "")
         return 0.0
