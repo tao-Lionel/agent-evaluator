@@ -12,6 +12,11 @@ from core.registry import registry
 
 logger = logging.getLogger(__name__)
 
+
+def _strip_think(text: str) -> str:
+    """Remove <think>...</think> blocks from model output."""
+    return re.sub(r"<think>[\s\S]*?</think>\s*", "", text).strip()
+
 JUDGE_SYSTEM_PROMPT_DB = """\
 You are a database state verifier. You will receive the current database state \
 and a list of assertions to check. For each assertion, determine if it PASSES \
@@ -128,7 +133,7 @@ class NLAssertionEvaluator(Evaluator):
                 max_tokens=self.max_tokens,
             )
             judge_text = response.choices[0].message.content or ""
-            self.last_reason = judge_text
+            self.last_reason = _strip_think(judge_text)
             passed, total = _parse_results(judge_text, len(assertions))
             score = passed / total if total > 0 else 0.0
             logger.info(
