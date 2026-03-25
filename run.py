@@ -190,15 +190,49 @@ def main():
         user_params = {k: v for k, v in user_cfg.items() if k != "type"}
         user = UserClass(**user_params)
 
-    # Build orchestrator
+    # Build orchestrator (on_progress callback attached after definition below)
     orchestrator = Orchestrator(adapter, env, evaluator_map, user=user)
 
     # Run evaluation
     num_trials = config.get("run", {}).get("num_trials", 1)
     all_results: list[EvalResult] = []
 
+    agent_name = config.get("name", "").strip()
+
+    # ── Live progress callback for ws_bot adapter ──
+    _progress_status = ""
+    def _on_ws_progress(event: str, data: dict):
+        nonlocal _progress_status
+        elapsed = data.get("elapsed", 0)
+        if event == "ws_connected":
+            _progress_status = "已连接"
+        elif event == "ws_tool_start":
+            _progress_status = f"调用工具 {data['name']}"
+        elif event == "ws_tool_result":
+            status = data.get("status", "done")
+            _progress_status = f"工具 {data['name']} {status}"
+        elif event == "ws_content":
+            _progress_status = f"接收回复 {data['chars']}字"
+        elif event == "ws_done":
+            _progress_status = f"Agent 完成 ({data['chars']}字, {data['tools']}次工具)"
+        elif event == "ws_error":
+            _progress_status = f"Agent 错误: {data.get('message', '')[:30]}"
+        elif event == "ws_msg_timeout":
+            _progress_status = f"消息超时 ({data['timeout']:.0f}s)"
+        elif event == "ws_total_timeout":
+            _progress_status = f"总超时 ({data['elapsed']:.0f}s)"
+        elif event == "ws_closed":
+            _progress_status = "连接关闭"
+        elif event == "eval_start":
+            _progress_status = f"评估中 [{data['name']}]"
+
+    if hasattr(adapter, "on_progress"):
+        adapter.on_progress = _on_ws_progress
+    orchestrator.on_progress = _on_ws_progress
+
     print("-" * 60)
-    print(f"  Agent   : {agent_cfg.get('model', agent_cfg['adapter'])}")
+    agent_display = agent_name or agent_cfg.get('model', agent_cfg['adapter'])
+    print(f"  Agent   : {agent_display}")
     print(f"  Env     : {env_type}")
     print(f"  User    : {config.get('user', {}).get('type', 'none')}")
     print(f"  Evals   : {', '.join(evaluator_names)}")
@@ -214,19 +248,25 @@ def main():
 
         for i, task in enumerate(tasks, 1):
             total = len(tasks)
-            # Progress indicator with live elapsed timer
             prefix = f"  [{i}/{total}]"
-            print(f"{prefix} 正在评估 {task.id} ({task.difficulty})...", end="", flush=True)
+            _progress_status = ""
+            print(f"{prefix} {task.id} ({task.difficulty})", end="", flush=True)
             task_start = time.time()
 
-            # Start a background timer thread for live progress
+            # Live progress thread — shows elapsed time + ws_bot status
             import threading
             _stop_timer = threading.Event()
-            def _print_elapsed():
-                while not _stop_timer.wait(10):
+            def _print_live():
+                last_status = ""
+                while not _stop_timer.wait(1):
                     elapsed = time.time() - task_start
-                    print(f"\r{prefix} 正在评估 {task.id} ({task.difficulty})... {elapsed:.0f}s", end="", flush=True)
-            timer = threading.Thread(target=_print_elapsed, daemon=True)
+                    status_part = f" | {_progress_status}" if _progress_status else ""
+                    line = f"\r{prefix} {task.id} ({task.difficulty}) {elapsed:.0f}s{status_part}"
+                    # Pad to overwrite previous longer line
+                    pad = max(0, len(last_status) - len(line))
+                    print(line + " " * pad, end="", flush=True)
+                    last_status = line
+            timer = threading.Thread(target=_print_live, daemon=True)
             timer.start()
 
             result = orchestrator.run(task)
@@ -234,7 +274,8 @@ def main():
             _stop_timer.set()
             elapsed = time.time() - task_start
             status = "PASS" if result.overall_score >= 1.0 - 1e-6 else f"{result.overall_score:.2f}"
-            print(f"\r{prefix} {task.id} ({task.difficulty}) -> {status}  [{elapsed:.0f}s]" + " " * 20)
+            final = f"\r{prefix} {task.id} ({task.difficulty}) -> {status}  [{elapsed:.0f}s]"
+            print(final + " " * 30)
 
             all_results.append(result)
             print_result(result, task)
@@ -272,7 +313,13 @@ def main():
     # Save results
     output_dir = PROJECT_ROOT / "results"
     output_dir.mkdir(exist_ok=True)
-    output_file = output_dir / f"results_{int(time.time())}.json"
+    # Use agent name in filename for easy identification
+    if agent_name:
+        import re as _re
+        safe_name = _re.sub(r'[\\/:*?"<>|\s]+', '-', agent_name).strip('-')
+        output_file = output_dir / f"results_{safe_name}_{int(time.time())}.json"
+    else:
+        output_file = output_dir / f"results_{int(time.time())}.json"
     # Build task lookup for adding task info to results
     task_map = {t.id: t for t in tasks}
     results_data = []
@@ -286,11 +333,16 @@ def main():
                 "initial_message": t.initial_message,
             }
         results_data.append(entry)
-    # Append trial stats and saturation warning as metadata
+    # Append metadata
+    meta = {}
+    if agent_name:
+        meta["_agent_name"] = agent_name
     if trial_stats:
-        results_data.append({"_trial_stats": trial_stats})
+        meta["_trial_stats"] = trial_stats
     if sat_warning:
-        results_data.append({"_saturation_warning": sat_warning})
+        meta["_saturation_warning"] = sat_warning
+    if meta:
+        results_data.append(meta)
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(

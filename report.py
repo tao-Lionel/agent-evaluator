@@ -65,6 +65,7 @@ def generate_html(results: list[dict], source_path: str, lang: str = "en", analy
     # Extract metadata from results if embedded, and filter it out
     trial_stats = {}
     saturation_warning = ""
+    agent_name = ""
     if not analysis:
         for r in results:
             if "_analysis" in r:
@@ -73,6 +74,8 @@ def generate_html(results: list[dict], source_path: str, lang: str = "en", analy
                 trial_stats = r["_trial_stats"]
             if "_saturation_warning" in r:
                 saturation_warning = r["_saturation_warning"]
+            if "_agent_name" in r:
+                agent_name = r["_agent_name"]
     results = [r for r in results if not any(k.startswith("_") for k in r)]
 
     total = len(results)
@@ -167,9 +170,11 @@ def generate_html(results: list[dict], source_path: str, lang: str = "en", analy
             f'{rows}</table></div>'
         )
 
+    display_title = f'{t["title"]} — {agent_name}' if agent_name else t["title"]
+
     return HTML_TEMPLATE.format(
         lang=lang,
-        title=t["title"],
+        title=display_title,
         source_label=t["source"],
         source=escape(source_path),
         total=total,
@@ -229,7 +234,7 @@ def _render_radar_chart(eval_avgs: dict[str, float], overall: float, t: dict) ->
     labels = [labels_map.get(d, d) for d in dimensions]
     n = len(dimensions)
 
-    cx, cy, r = 150, 150, 120
+    cx, cy, r = 250, 250, 130
     angle_offset = -math.pi / 2  # start from top
 
     def polar(i, scale=1.0):
@@ -263,14 +268,19 @@ def _render_radar_chart(eval_avgs: dict[str, float], overall: float, t: dict) ->
     # Labels
     label_svg = ""
     for i in range(n):
-        x, y = polar(i, 1.18)
+        x, y = polar(i, 1.28)
         anchor = "middle"
+        dy = "0.35em"
         if x < cx - 10:
             anchor = "end"
         elif x > cx + 10:
             anchor = "start"
+        if y < cy - 10:
+            dy = "-0.2em"
+        elif y > cy + 10:
+            dy = "0.9em"
         label_svg += (
-            f'<text x="{x:.1f}" y="{y:.1f}" text-anchor="{anchor}" '
+            f'<text x="{x:.1f}" y="{y:.1f}" dy="{dy}" text-anchor="{anchor}" '
             f'fill="var(--text2)" font-size="11">{escape(labels[i])} ({values[i]:.0%})</text>\n'
         )
 
@@ -280,7 +290,7 @@ def _render_radar_chart(eval_avgs: dict[str, float], overall: float, t: dict) ->
         f'<div class="eval-section">'
         f'<h2>{radar_title}</h2>'
         f'<div style="text-align:center">'
-        f'<svg viewBox="0 0 300 300" width="340" height="340" style="max-width:100%">'
+        f'<svg viewBox="0 0 500 500" width="500" height="500" style="max-width:100%">'
         f'{grid_svg}{axes_svg}{data_svg}{dots_svg}{label_svg}'
         f'</svg></div></div>'
     )
