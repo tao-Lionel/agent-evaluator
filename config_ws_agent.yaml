@@ -1,0 +1,27 @@
+# ============================================================
+# WebSocket Agent 评估配置 — Amazon 评论分析助手
+# ============================================================
+
+name: "Amazon评论分析助手"
+
+agent:
+  adapter: ws_bot
+  ws_url: "ws://192.168.11.18:8501/ws/chat"
+  timeout: 120
+
+environment:
+  type: passthrough
+
+evaluators:
+  - name: llm_judge
+    model: glm-5
+  - name: nl_assertion
+    model: glm-5
+  - info_delivery
+  - action_match
+
+scenarios: scenarios/ws_agent_tasks.json
+
+run:
+  num_trials: 1
+  log_level: INFO
