@@ -338,6 +338,8 @@ def _render_trajectory(trajectory: list[dict]) -> str:
     for msg in trajectory:
         role = msg.get("role", "unknown")
         content = msg.get("content", "")
+        if not isinstance(content, str):
+            content = json.dumps(content, ensure_ascii=False) if content else ""
         tool_calls = msg.get("tool_calls", [])
         tool_results = msg.get("tool_results", [])
 
