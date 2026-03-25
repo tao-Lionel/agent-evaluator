@@ -212,8 +212,30 @@ def main():
         if num_trials > 1:
             print(f"── Trial {trial + 1}/{num_trials} ──\n")
 
-        for task in tasks:
+        for i, task in enumerate(tasks, 1):
+            total = len(tasks)
+            # Progress indicator with live elapsed timer
+            prefix = f"  [{i}/{total}]"
+            print(f"{prefix} 正在评估 {task.id} ({task.difficulty})...", end="", flush=True)
+            task_start = time.time()
+
+            # Start a background timer thread for live progress
+            import threading
+            _stop_timer = threading.Event()
+            def _print_elapsed():
+                while not _stop_timer.wait(10):
+                    elapsed = time.time() - task_start
+                    print(f"\r{prefix} 正在评估 {task.id} ({task.difficulty})... {elapsed:.0f}s", end="", flush=True)
+            timer = threading.Thread(target=_print_elapsed, daemon=True)
+            timer.start()
+
             result = orchestrator.run(task)
+
+            _stop_timer.set()
+            elapsed = time.time() - task_start
+            status = "PASS" if result.overall_score >= 1.0 - 1e-6 else f"{result.overall_score:.2f}"
+            print(f"\r{prefix} {task.id} ({task.difficulty}) -> {status}  [{elapsed:.0f}s]" + " " * 20)
+
             all_results.append(result)
             print_result(result, task)
 
