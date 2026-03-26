@@ -379,6 +379,10 @@ def main():
                 f.write(cmp_html)
             print(f"  Compare saved to {cmp_file}  (vs {prev.name})")
 
+    # Close adapter resources (e.g. httpx.Client)
+    if hasattr(adapter, "close"):
+        adapter.close()
+
     print()
 
 

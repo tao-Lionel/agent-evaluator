@@ -79,6 +79,9 @@ class HttpBotAdapter(AgentAdapter):
         self.conversation_id: str | None = None
         self.client = httpx.Client(timeout=timeout)
 
+    def close(self) -> None:
+        self.client.close()
+
     def reset(self) -> None:
         self.conversation_id = str(uuid.uuid4())
 
@@ -158,7 +161,11 @@ class HttpBotAdapter(AgentAdapter):
                     headers=self.headers,
                 )
                 response.raise_for_status()
-                data = response.json()
+                try:
+                    data = response.json()
+                except (json.JSONDecodeError, ValueError):
+                    logger.warning("HttpBot response is not JSON: %s", response.text[:200])
+                    return response.text
                 return self._extract_reply(data)
             except (httpx.HTTPStatusError, httpx.ConnectError, httpx.ReadTimeout) as e:
                 last_error = e

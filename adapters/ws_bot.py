@@ -109,7 +109,11 @@ class WsBotAdapter(AgentAdapter):
                         msg_timeout = self.timeout
 
                     raw = await asyncio.wait_for(ws.recv(), timeout=msg_timeout)
-                    msg = json.loads(raw)
+                    try:
+                        msg = json.loads(raw)
+                    except json.JSONDecodeError:
+                        logger.warning("WsBot received non-JSON message: %s", raw[:200])
+                        continue
                     msg_type = msg.get("type", "")
                     elapsed = _time.monotonic() - t0
 
@@ -156,7 +160,7 @@ class WsBotAdapter(AgentAdapter):
             try:
                 self.on_progress(event, data)
             except Exception:
-                pass
+                logger.debug("Progress callback error for event %s", event, exc_info=True)
 
     @staticmethod
     def _extract_last_user_message(messages: list[Message]) -> str:

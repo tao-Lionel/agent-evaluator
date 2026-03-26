@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from typing import Any
 
@@ -40,24 +41,26 @@ VERIFY_TOKEN = os.getenv("FEISHU_VERIFY_TOKEN", "")
 # ── Token cache ──
 _tenant_access_token: str = ""
 _token_expires_at: float = 0
+_token_lock = threading.Lock()
 
 
 def get_tenant_access_token() -> str:
     global _tenant_access_token, _token_expires_at
-    if _tenant_access_token and time.time() < _token_expires_at - 60:
+    with _token_lock:
+        if _tenant_access_token and time.time() < _token_expires_at - 60:
+            return _tenant_access_token
+
+        resp = httpx.post(
+            "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
+            json={"app_id": APP_ID, "app_secret": APP_SECRET},
+        )
+        data = resp.json()
+        if data.get("code") != 0:
+            raise RuntimeError(f"Feishu auth failed: {data.get('msg')}")
+
+        _tenant_access_token = data["tenant_access_token"]
+        _token_expires_at = time.time() + data.get("expire", 7200)
         return _tenant_access_token
-
-    resp = httpx.post(
-        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
-        json={"app_id": APP_ID, "app_secret": APP_SECRET},
-    )
-    data = resp.json()
-    if data.get("code") != 0:
-        raise RuntimeError(f"Feishu auth failed: {data.get('msg')}")
-
-    _tenant_access_token = data["tenant_access_token"]
-    _token_expires_at = time.time() + data.get("expire", 7200)
-    return _tenant_access_token
 
 
 def send_reply(message_id: str, text: str) -> None:
@@ -91,18 +94,20 @@ def send_message_to_chat(chat_id: str, text: str) -> None:
 
 # ── Dedup ──
 _seen_event_ids: dict[str, float] = {}
+_dedup_lock = threading.Lock()
 
 
 def _is_duplicate(event_id: str) -> bool:
     now = time.time()
-    if len(_seen_event_ids) > 500:
-        cutoff = now - 300
-        for k in [k for k, v in _seen_event_ids.items() if v < cutoff]:
-            del _seen_event_ids[k]
-    if event_id in _seen_event_ids:
-        return True
-    _seen_event_ids[event_id] = now
-    return False
+    with _dedup_lock:
+        if len(_seen_event_ids) > 500:
+            cutoff = now - 300
+            for k in [k for k, v in _seen_event_ids.items() if v < cutoff]:
+                del _seen_event_ids[k]
+        if event_id in _seen_event_ids:
+            return True
+        _seen_event_ids[event_id] = now
+        return False
 
 
 def _extract_text_and_ids(body: dict) -> tuple[str | None, str | None, str | None]:
@@ -199,6 +204,11 @@ async def feishu_event(request: Request):
         send_reply(message_id, f"处理出错: {e}")
 
     return {"code": 0}
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    runner.shutdown()
 
 
 @app.get("/health")

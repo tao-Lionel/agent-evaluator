@@ -57,12 +57,13 @@ uvicorn eval_bot.feishu:app --port 8102
 - **环境**（2 个）：
   - `mock_db` — 内存 CRUD 数据库（query/update/insert/delete/done）
   - `passthrough` — 透传环境，用于黑盒 Agent 评估（无工具、无状态变更）
-- **评估器**（5 个）：
+- **评估器**（6 个）：
   - `state_match` — DB 状态比对（MD5 精确匹配 + 子集匹配 fallback）
   - `action_match` — 工具调用部分参数匹配
   - `info_delivery` — Agent 回复子串检查（模糊匹配），支持评判详情输出
   - `llm_judge` — LLM 回复质量评分（1-5 分，适用于黑盒 Agent，支持 INSUFFICIENT_INFO 逃生门），支持配置 model/temperature/max_tokens
   - `nl_assertion` — 自然语言断言评估（LLM-as-Judge 逐条判 PASS/FAIL），支持配置 model/temperature/max_tokens
+  - `safety` — 安全性评估（默认拒绝关键词检测 + LLM 辅助判断），检测有害内容、越权访问等
 - **指标与校准**（`core/`）：
   - `metrics.py` — Pass@k / Pass^k 一致性指标、饱和度警告
   - `calibration.py` — Grader 校准框架（LLM vs 人工评分一致性）
@@ -96,9 +97,9 @@ uvicorn eval_bot.feishu:app --port 8102
 core/           — 核心引擎（types, base, registry, orchestrator, metrics, calibration）
 adapters/       — Agent 适配器（openai_fc, http_bot, ws_bot）
 environments/   — 环境实现（mock_db, passthrough）
-evaluators/     — 评估器（state_match, action_match, info_delivery, llm_judge, nl_assertion）
+evaluators/     — 评估器（state_match, action_match, info_delivery, llm_judge, nl_assertion, safety）
 users/          — 用户模拟器（scripted, llm）
-scenarios/      — 任务场景 JSON（sample_tasks, multi_turn_tasks, http_bot_tasks, ws_agent_tasks）
+scenarios/      — 任务场景 JSON（sample_tasks, multi_turn_tasks, http_bot_tasks, negative_tasks, ws_agent_tasks, generate_tasks）
 eval_bot/       — 飞书评测 Bot（dispatcher, runner, feishu webhook, commands/）
 tests/          — 单元测试（test_core, test_multi_turn, test_llm_judge, test_passthrough, test_http_bot, test_eval_bot_*）
 docs/           — 文档（roadmap, plans/, research/）
@@ -122,14 +123,15 @@ results/        — 评估结果输出（JSON + HTML 报告）
 
 任务定义在 JSON 数组中。每个任务包含：`id`、`description`、`initial_message`、`initial_state`（DB 表数据）、`expected_actions`（含 `match_args` 用于部分匹配）、`expected_state`（用于子集匹配 fallback）、`required_info`、`difficulty`、`max_steps`、`nl_assertions`（可选，自然语言断言列表）、`user_scenario`（可选，含 `persona`、`goal`、`script` 用于多轮对话）、`single_turn`（可选，用于黑盒 Agent）。
 
-当前有五套场景：
+当前有六套场景：
 - `scenarios/sample_tasks.json` — 5 个单轮任务（easy/medium/hard）
 - `scenarios/multi_turn_tasks.json` — 3 个多轮对话任务
-- `scenarios/http_bot_tasks.json` — 5 个 HTTP Bot 评估任务
+- `scenarios/http_bot_tasks.json` — 5 个 HTTP Bot 评估任务（英文）
 - `scenarios/negative_tasks.json` — 5 个反例场景（越权、信息不足、批量删除、不存在资源、业务规则）
 - `scenarios/ws_agent_tasks.json` — 5 个 WebSocket Agent 评估任务
+- `scenarios/generate_tasks.json` — 场景生成用种子任务
 
-所有场景和系统提示词均为中文。
+大部分场景和系统提示词为中文，`http_bot_tasks.json` 为英文。
 
 ## 依赖
 
