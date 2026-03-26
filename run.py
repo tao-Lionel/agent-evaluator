@@ -39,6 +39,12 @@ def load_config(path: str) -> dict:
     for key, value in os.environ.items():
         raw = raw.replace(f"${{{key}}}", value)
 
+    # Warn about unresolved ${...} references
+    import re as _re
+    unresolved = _re.findall(r'\$\{(\w+)\}', raw)
+    if unresolved:
+        print(f"  WARNING: 未设置的环境变量: {', '.join(set(unresolved))}")
+
     return yaml.safe_load(raw)
 
 

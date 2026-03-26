@@ -60,6 +60,10 @@ class Task:
 
     @classmethod
     def from_dict(cls, data: dict) -> Task:
+        _required = ("id", "description", "initial_message")
+        missing = [f for f in _required if f not in data]
+        if missing:
+            raise ValueError(f"Task missing required fields: {', '.join(missing)} (data={data.get('id', '?')})")
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 

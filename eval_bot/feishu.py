@@ -200,8 +200,8 @@ async def feishu_event(request: Request):
         logger.info("Intent: %s, Args: %s", intent, args)
         _handle_intent(intent, args, message_id, chat_id or "")
     except Exception as e:
-        logger.error("Error handling message: %s", e)
-        send_reply(message_id, f"处理出错: {e}")
+        logger.error("Error handling message: %s", e, exc_info=True)
+        send_reply(message_id, "处理出错，请稍后重试。如持续出现请联系管理员。")
 
     return {"code": 0}
 

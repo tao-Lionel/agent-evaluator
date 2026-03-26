@@ -172,17 +172,15 @@ def run_quick_eval(
             }
         results_data.append(entry)
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(results_data, f, ensure_ascii=False, indent=2)
-
     # Analyze failures
     analysis = analyze_failures(results_data, all_results, task_map)
 
-    # Save analysis into results JSON
+    # Save analysis into results JSON (single write)
     if analysis:
         results_data.append({"_analysis": analysis})
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(results_data, f, ensure_ascii=False, indent=2)
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(results_data, f, ensure_ascii=False, indent=2)
 
     # Generate HTML report
     report_data = load_results(str(output_file))
