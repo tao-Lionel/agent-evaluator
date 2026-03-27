@@ -14,10 +14,14 @@ environment:
 
 evaluators:
   - name: llm_judge
-    model: glm-5
+    model: MiniMax-M2.7
+    base_url: "https://api.minimax.chat/v1"
+    api_key: ${MINIMAX_API_KEY}
     max_tokens: 4096
   - name: nl_assertion
-    model: glm-5
+    model: MiniMax-M2.7
+    base_url: "https://api.minimax.chat/v1"
+    api_key: ${MINIMAX_API_KEY}
     max_tokens: 4096
   - info_delivery
 

@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent 评估方法论</title>
+
+    <!-- Fonts: Clash Display + Satoshi from Fontshare -->
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@400;500;600;700&f[]=satoshi@400;500;700&display=swap">
+
+    <style>
+        /* ===========================================
+           CSS CUSTOM PROPERTIES (NEON CYBER THEME)
+           =========================================== */
+        :root {
+            --bg-primary: #0a0f1c;
+            --bg-secondary: #0f1629;
+            --bg-card: rgba(15, 22, 41, 0.85);
+            --text-primary: #e8ecf4;
+            --text-secondary: #7a8ba8;
+            --accent-cyan: #00ffcc;
+            --accent-magenta: #ff00aa;
+            --accent-blue: #4361ee;
+            --accent-glow-cyan: rgba(0, 255, 204, 0.3);
+            --accent-glow-magenta: rgba(255, 0, 170, 0.2);
+            --border-subtle: rgba(0, 255, 204, 0.15);
+
+            --font-display: 'Clash Display', sans-serif;
+            --font-body: 'Satoshi', sans-serif;
+
+            --title-size: clamp(2rem, 6vw, 4.5rem);
+            --h2-size: clamp(1.4rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1rem, 2.5vw, 1.5rem);
+            --body-size: clamp(0.75rem, 1.4vw, 1.05rem);
+            --small-size: clamp(0.65rem, 1vw, 0.85rem);
+            --slide-padding: clamp(1.5rem, 4vw, 4rem);
+            --content-gap: clamp(0.75rem, 2vw, 1.5rem);
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration-normal: 0.6s;
+        }
+
+        /* ===========================================
+           BASE STYLES
+           =========================================== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* --- VIEWPORT BASE (mandatory) --- */
+        html, body { height: 100%; overflow-x: hidden; }
+        html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
+        .slide {
+            width: 100vw; height: 100vh; height: 100dvh;
+            overflow: hidden; scroll-snap-align: start;
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        .slide-content {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; max-height: 100%; overflow: hidden;
+            padding: var(--slide-padding);
+        }
+
+        .card, .container, .content-box {
+            max-width: min(90vw, 1000px); max-height: min(80vh, 700px);
+        }
+
+        .feature-list, .bullet-list { gap: clamp(0.4rem, 1vh, 1rem); }
+        .feature-list li, .bullet-list li { font-size: var(--body-size); line-height: 1.4; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+            gap: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        img, .image-container { max-width: 100%; max-height: min(50vh, 400px); object-fit: contain; }
+
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 3vw, 2rem);
+                --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --h2-size: clamp(1rem, 3vw, 1.75rem);
+            }
+        }
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+                --title-size: clamp(1.1rem, 4vw, 2rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+            .nav-dots, .keyboard-hint, .decorative { display: none; }
+        }
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.4rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.5rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+        @media (max-width: 600px) {
+            :root { --title-size: clamp(1.25rem, 7vw, 2.5rem); }
+            .grid { grid-template-columns: 1fr; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* ===========================================
+           GLOBAL STYLES
+           =========================================== */
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        h1, h2, h3 { font-family: var(--font-display); font-weight: 600; }
+
+        /* ===========================================
+           ANIMATIONS
+           =========================================== */
+        .reveal {
+            opacity: 0; transform: translateY(30px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+        .slide.visible .reveal { opacity: 1; transform: translateY(0); }
+        .reveal:nth-child(1) { transition-delay: 0.1s; }
+        .reveal:nth-child(2) { transition-delay: 0.2s; }
+        .reveal:nth-child(3) { transition-delay: 0.3s; }
+        .reveal:nth-child(4) { transition-delay: 0.4s; }
+        .reveal:nth-child(5) { transition-delay: 0.5s; }
+        .reveal:nth-child(6) { transition-delay: 0.6s; }
+
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ===========================================
+           SLIDE BACKGROUNDS
+           =========================================== */
+        .slide {
+            background: var(--bg-primary);
+        }
+        .slide::before {
+            content: '';
+            position: absolute; inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 80%, var(--accent-glow-magenta) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, var(--accent-glow-cyan) 0%, transparent 50%);
+            pointer-events: none; z-index: 0;
+        }
+        .slide::after {
+            content: '';
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(rgba(0,255,204,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,255,204,0.03) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none; z-index: 0;
+        }
+        .slide-content { position: relative; z-index: 1; }
+
+        /* ===========================================
+           PROGRESS BAR
+           =========================================== */
+        .progress-bar {
+            position: fixed; top: 0; left: 0;
+            height: 3px; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
+            z-index: 9999; transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--accent-glow-cyan);
+        }
+
+        /* ===========================================
+           NAV DOTS
+           =========================================== */
+        .nav-dots {
+            position: fixed; right: clamp(0.75rem, 2vw, 1.5rem);
+            top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 8px;
+            z-index: 9998;
+        }
+        .nav-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-secondary); cursor: pointer;
+            transition: all 0.3s ease; border: none; padding: 0;
+        }
+        .nav-dot.active {
+            background: var(--accent-cyan);
+            box-shadow: 0 0 8px var(--accent-glow-cyan);
+            transform: scale(1.4);
+        }
+
+        /* ===========================================
+           TITLE SLIDE
+           =========================================== */
+        .title-slide .slide-content {
+            align-items: center; text-align: center;
+            gap: clamp(0.75rem, 2vh, 1.5rem);
+        }
+        .title-slide h1 {
+            font-size: var(--title-size); font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .title-slide .subtitle {
+            font-size: clamp(0.9rem, 1.8vw, 1.2rem);
+            color: var(--text-secondary); max-width: 600px;
+        }
+        .title-slide .meta {
+            font-size: var(--small-size);
+            color: var(--accent-cyan); letter-spacing: 0.15em;
+            text-transform: uppercase; margin-top: clamp(0.5rem, 1vh, 1rem);
+        }
+
+        /* ===========================================
+           CONTENT SLIDES
+           =========================================== */
+        .slide-content h2 {
+            font-size: var(--h2-size); margin-bottom: var(--content-gap);
+            color: var(--accent-cyan);
+        }
+        .slide-content h3 {
+            font-size: var(--h3-size); color: var(--text-primary);
+            margin-bottom: clamp(0.3rem, 0.8vh, 0.6rem);
+        }
+        .slide-content p, .slide-content li {
+            font-size: var(--body-size); line-height: 1.6;
+            color: var(--text-secondary);
+        }
+        .slide-content strong { color: var(--text-primary); }
+
+        /* Slide number label */
+        .slide-number {
+            position: absolute; top: clamp(1rem, 2vh, 1.5rem); left: var(--slide-padding);
+            font-family: var(--font-display); font-size: var(--small-size);
+            color: var(--accent-cyan); opacity: 0.5; letter-spacing: 0.1em; z-index: 2;
+        }
+
+        /* ===========================================
+           SPECIAL COMPONENTS
+           =========================================== */
+
+        /* Neon bordered card */
+        .neon-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: clamp(0.75rem, 2vw, 1.5rem);
+            backdrop-filter: blur(10px);
+        }
+        .neon-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px var(--accent-glow-cyan);
+        }
+
+        /* Quote/callout */
+        .callout {
+            border-left: 3px solid var(--accent-cyan);
+            padding-left: clamp(0.75rem, 2vw, 1.5rem);
+            font-style: italic; color: var(--text-secondary);
+            font-size: clamp(0.85rem, 1.6vw, 1.1rem);
+        }
+
+        /* Tag/badge */
+        .tag {
+            display: inline-block;
+            padding: clamp(0.15rem, 0.4vw, 0.25rem) clamp(0.4rem, 1vw, 0.75rem);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 20px; font-size: var(--small-size);
+            color: var(--accent-cyan); white-space: nowrap;
+        }
+        .tag--magenta { border-color: var(--accent-magenta); color: var(--accent-magenta); }
+        .tag--dim { border-color: var(--text-secondary); color: var(--text-secondary); }
+
+        /* Comparison table */
+        .compare-table {
+            width: 100%; border-collapse: collapse;
+            font-size: var(--small-size);
+        }
+        .compare-table th {
+            text-align: left; padding: clamp(0.3rem, 0.6vh, 0.5rem) clamp(0.4rem, 1vw, 0.75rem);
+            border-bottom: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan); font-family: var(--font-display); font-weight: 500;
+        }
+        .compare-table td {
+            padding: clamp(0.25rem, 0.5vh, 0.4rem) clamp(0.4rem, 1vw, 0.75rem);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-secondary);
+        }
+        .compare-table tr:last-child td { border-bottom: none; }
+
+        /* Dimension cards grid */
+        .dim-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.4rem, 1vw, 0.75rem);
+        }
+        @media (max-width: 700px) { .dim-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .dim-card {
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 10px; padding: clamp(0.5rem, 1.2vw, 1rem);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .dim-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 15px var(--accent-glow-cyan);
+        }
+        .dim-card .dim-num {
+            font-family: var(--font-display); font-size: clamp(1.5rem, 3vw, 2.5rem);
+            font-weight: 700; color: var(--accent-cyan); opacity: 0.3;
+            line-height: 1;
+        }
+        .dim-card .dim-name {
+            font-family: var(--font-display); font-size: clamp(0.8rem, 1.3vw, 1rem);
+            font-weight: 600; color: var(--text-primary);
+            margin: clamp(0.15rem, 0.3vh, 0.25rem) 0;
+        }
+        .dim-card .dim-desc {
+            font-size: var(--small-size); color: var(--text-secondary); line-height: 1.4;
+        }
+
+        /* Formula display */
+        .formula {
+            font-family: 'Clash Display', monospace;
+            font-size: clamp(1.1rem, 2.5vw, 1.8rem);
+            color: var(--accent-cyan);
+            text-align: center;
+            padding: clamp(0.75rem, 2vh, 1.5rem);
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            letter-spacing: 0.05em;
+        }
+
+        /* VS comparison */
+        .vs-row {
+            display: flex; gap: clamp(0.5rem, 1.5vw, 1rem);
+            align-items: stretch;
+        }
+        @media (max-width: 600px) { .vs-row { flex-direction: column; } }
+        .vs-box {
+            flex: 1; padding: clamp(0.6rem, 1.5vw, 1.2rem);
+            border-radius: 10px; border: 1px solid var(--border-subtle);
+        }
+        .vs-box--bad { background: rgba(255, 0, 170, 0.05); border-color: rgba(255, 0, 170, 0.3); }
+        .vs-box--good { background: rgba(0, 255, 204, 0.05); border-color: rgba(0, 255, 204, 0.3); }
+        .vs-label {
+            font-family: var(--font-display); font-size: var(--small-size);
+            text-transform: uppercase; letter-spacing: 0.1em;
+            margin-bottom: clamp(0.2rem, 0.5vh, 0.4rem);
+        }
+        .vs-box--bad .vs-label { color: var(--accent-magenta); }
+        .vs-box--good .vs-label { color: var(--accent-cyan); }
+
+        /* Benchmark cards */
+        .bench-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+            gap: clamp(0.4rem, 1vw, 0.75rem);
+        }
+        .bench-card {
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 10px; padding: clamp(0.5rem, 1.2vw, 1rem);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .bench-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 15px var(--accent-glow-cyan);
+        }
+        .bench-card .bench-name {
+            font-family: var(--font-display); font-weight: 600;
+            font-size: clamp(0.85rem, 1.3vw, 1.05rem);
+            color: var(--accent-cyan); margin-bottom: clamp(0.15rem, 0.3vh, 0.25rem);
+        }
+        .bench-card .bench-focus {
+            font-size: var(--small-size); color: var(--accent-magenta);
+            margin-bottom: clamp(0.1rem, 0.2vh, 0.2rem);
+        }
+        .bench-card .bench-desc {
+            font-size: var(--small-size); color: var(--text-secondary); line-height: 1.4;
+        }
+
+        /* Bullet with icon */
+        .icon-list { list-style: none; display: flex; flex-direction: column; gap: clamp(0.3rem, 0.8vh, 0.6rem); }
+        .icon-list li {
+            display: flex; align-items: flex-start; gap: clamp(0.4rem, 0.8vw, 0.6rem);
+            font-size: var(--body-size); color: var(--text-secondary); line-height: 1.5;
+        }
+        .icon-list .icon {
+            color: var(--accent-cyan); font-size: clamp(0.8rem, 1.2vw, 1rem);
+            flex-shrink: 0; margin-top: 0.2em;
+        }
+
+        /* Keyboard hint */
+        .keyboard-hint {
+            position: fixed; bottom: clamp(0.75rem, 2vh, 1.5rem);
+            left: 50%; transform: translateX(-50%);
+            font-size: var(--small-size); color: var(--text-secondary);
+            opacity: 0.4; z-index: 9998;
+        }
+
+        /* End slide */
+        .end-slide .slide-content {
+            align-items: center; text-align: center;
+            gap: clamp(0.5rem, 1.5vh, 1rem);
+        }
+        .end-slide h2 {
+            font-size: var(--title-size);
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Two-column layout */
+        .two-col {
+            display: flex; gap: clamp(1rem, 3vw, 2.5rem); align-items: flex-start;
+        }
+        .two-col > * { flex: 1; min-width: 0; }
+        @media (max-width: 700px) { .two-col { flex-direction: column; } }
+
+        /* Step flow */
+        .step-flow {
+            display: flex; align-items: center; gap: clamp(0.3rem, 0.8vw, 0.5rem);
+            flex-wrap: wrap; font-size: var(--small-size);
+        }
+        .step-item {
+            padding: clamp(0.2rem, 0.4vw, 0.3rem) clamp(0.5rem, 1vw, 0.75rem);
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 6px; color: var(--text-primary);
+        }
+        .step-arrow { color: var(--accent-cyan); font-size: clamp(0.7rem, 1vw, 0.9rem); }
+    </style>
+</head>
+<body>
+
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- Navigation dots -->
+    <nav class="nav-dots" id="navDots"></nav>
+
+    <!-- Keyboard hint -->
+    <div class="keyboard-hint">Arrow Keys / Space / Scroll</div>
+
+    <!-- ==========================================
+         SLIDE 1: TITLE
+         ========================================== -->
+    <section class="slide title-slide">
+        <div class="slide-content">
+            <h1 class="reveal">AI Agent 评估方法论</h1>
+            <p class="subtitle reveal">如何科学地评判一个 Agent 到底行不行?</p>
+            <p class="meta reveal">内部技术分享</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 2: CORE QUESTION
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">01</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">Agent 和聊天机器人有什么不同?</h2>
+            <p class="reveal" style="max-width: 750px;">传统聊天机器人只需要"说得好"。但 <strong>Agent 不一样</strong>, 它不只是说话, 还要<strong>操作</strong>: 查数据库、调接口、改状态、做决策。</p>
+            <div class="callout reveal" style="max-width: 600px;">
+                说对了 &ne; 做对了 &ne; 做对了且告诉了用户
+            </div>
+            <p class="reveal" style="font-size: var(--body-size); color: var(--text-secondary);">评估维度从一维变成了多维 &mdash; 只看回复文本远远不够。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 3: SCENARIO TABLE
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">02</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">一个例子:"帮我取消订单"</h2>
+            <div class="neon-card reveal" style="overflow-x: auto;">
+                <table class="compare-table">
+                    <thead>
+                        <tr><th>场景</th><th>数据库状态</th><th>工具调用</th><th>回复</th><th>结论</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong style="color:var(--accent-cyan)">A</strong></td><td style="color:var(--accent-cyan)">cancelled &checkmark;</td><td style="color:var(--accent-cyan)">query+update &checkmark;</td><td style="color:var(--accent-cyan)">"已取消" &checkmark;</td><td style="color:var(--accent-cyan)">完美</td></tr>
+                        <tr><td><strong style="color:var(--accent-magenta)">B</strong></td><td style="color:var(--accent-cyan)">cancelled &checkmark;</td><td style="color:var(--accent-cyan)">query+update &checkmark;</td><td style="color:var(--accent-magenta)">"好的" &cross;</td><td style="color:var(--accent-magenta)">做对了但没说清</td></tr>
+                        <tr><td><strong style="color:var(--accent-magenta)">C</strong></td><td style="color:var(--accent-magenta)">没改 &cross;</td><td style="color:var(--accent-magenta)">只 query &cross;</td><td style="color:var(--accent-cyan)">"已取消" &checkmark;</td><td style="color:var(--accent-magenta)">说了谎</td></tr>
+                        <tr><td><strong style="color:var(--accent-magenta)">D</strong></td><td style="color:var(--accent-cyan)">cancelled &checkmark;</td><td style="color:var(--accent-magenta)">跳过 query &cross;</td><td style="color:var(--accent-cyan)">"已取消" &checkmark;</td><td style="color:var(--accent-magenta)">过程不规范</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="reveal" style="font-size: var(--body-size); color: var(--text-secondary);">只看回复文本, 场景 C 和 D 都会被判为"通过" &mdash; 但一个在说谎, 一个跳过了验证。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 4: SIX DIMENSIONS OVERVIEW
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">03</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">六个评估维度</h2>
+            <div class="dim-grid reveal">
+                <div class="dim-card"><div class="dim-num">01</div><div class="dim-name">状态正确性</div><div class="dim-desc">做完之后, 世界的状态对不对?</div></div>
+                <div class="dim-card"><div class="dim-num">02</div><div class="dim-name">行为规范性</div><div class="dim-desc">操作过程是否符合预期?</div></div>
+                <div class="dim-card"><div class="dim-num">03</div><div class="dim-name">信息传达</div><div class="dim-desc">关键信息有没有告诉用户?</div></div>
+                <div class="dim-card"><div class="dim-num">04</div><div class="dim-name">回复质量</div><div class="dim-desc">整体回复质量如何?</div></div>
+                <div class="dim-card"><div class="dim-num">05</div><div class="dim-name">断言验证</div><div class="dim-desc">具体业务规则是否被满足?</div></div>
+                <div class="dim-card"><div class="dim-num">06</div><div class="dim-name">安全性</div><div class="dim-desc">有没有做不该做的事?</div></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 5: DIMENSION 1 - STATE MATCH
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">04</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal"><span class="tag">维度 1</span> 状态正确性 state_match</h2>
+            <p class="reveal">最"硬"的指标 &mdash; 不管 Agent 说了什么, 最终系统状态必须和预期一致。</p>
+            <div class="two-col reveal">
+                <div class="neon-card">
+                    <h3 style="color:var(--accent-cyan); margin-bottom: 0.4em;">阶段一: 精确匹配</h3>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);">用预期操作重建"标准答案"数据库, 对比 MD5 哈希。一样 = 满分。</p>
+                </div>
+                <div class="neon-card">
+                    <h3 style="color:var(--accent-magenta); margin-bottom: 0.4em;">阶段二: 子集匹配</h3>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);">精确匹配失败时, 检查关键字段是否正确, 给部分分数。容忍非关键差异。</p>
+                </div>
+            </div>
+            <p class="reveal" style="font-size:var(--small-size);color:var(--text-secondary);">state_match 只管"结果对不对", 不管"怎么做的" &mdash; 过程由 action_match 单独评判。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 6: DIMENSION 2 & 3
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">05</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <div class="two-col">
+                <div class="reveal">
+                    <h2 style="font-size:var(--h3-size);"><span class="tag">维度 2</span> 行为规范性</h2>
+                    <p style="margin: 0.5em 0; font-size:var(--body-size); color:var(--text-secondary);">不只看结果, 还看过程。"取消订单"应该先查询再更新, 不能跳步。</p>
+                    <div class="neon-card" style="margin-top:0.5em;">
+                        <p style="font-size:var(--small-size);color:var(--text-secondary);margin-bottom:0.3em;"><strong style="color:var(--text-primary);">部分参数匹配</strong></p>
+                        <div class="step-flow">
+                            <span class="step-item">query(table="orders")</span>
+                            <span class="step-arrow">&rarr;</span>
+                            <span class="step-item">update(status="cancelled")</span>
+                        </div>
+                        <p style="font-size:var(--small-size);color:var(--text-secondary);margin-top:0.3em;">只检查必须有的参数, 容忍多出来的。</p>
+                    </div>
+                </div>
+                <div class="reveal">
+                    <h2 style="font-size:var(--h3-size);"><span class="tag">维度 3</span> 信息传达</h2>
+                    <p style="margin: 0.5em 0; font-size:var(--body-size); color:var(--text-secondary);">Agent 操作成功但只回复"好的" &mdash; 用户根本不知道发生了什么。</p>
+                    <div class="neon-card" style="margin-top:0.5em;">
+                        <p style="font-size:var(--small-size);color:var(--text-secondary);margin-bottom:0.3em;"><strong style="color:var(--text-primary);">模糊子串匹配</strong></p>
+                        <p style="font-size:var(--small-size);color:var(--text-secondary);">定义必须出现的关键词, 归一化后匹配。</p>
+                        <p style="font-size:var(--small-size);color:var(--accent-cyan);margin-top:0.3em;">得分 = 匹配数 / 总数 (说了 4/5 = 0.8 分)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 7: DIMENSION 4 - LLM JUDGE
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">06</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal"><span class="tag">维度 4</span> 回复质量 LLM-as-Judge</h2>
+            <p class="reveal">有些场景没有标准答案 (如"推荐礼物"), 需要用另一个 LLM 当评委打分。</p>
+            <div class="two-col reveal">
+                <div>
+                    <ul class="icon-list">
+                        <li><span class="icon">&raquo;</span> 评委按 1-5 分打分, 归一化为 0.0-1.0</li>
+                        <li><span class="icon">&raquo;</span> 设计了 <strong>INSUFFICIENT_INFO 逃生门</strong></li>
+                        <li><span class="icon">&raquo;</span> 判不了就说"判不了", 不强行打分</li>
+                    </ul>
+                </div>
+                <div class="neon-card">
+                    <p style="font-size:var(--small-size);color:var(--accent-magenta);margin-bottom:0.3em;"><strong>已知偏见</strong></p>
+                    <ul class="icon-list" style="gap:0.2rem;">
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> 位置偏见: 交换顺序, 分数偏移 &gt;10%</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> 冗长偏见: 更长 = 更高分</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> 自我偏好: 给自己打高分</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 8: DIMENSION 5 & 6
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">07</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <div class="two-col">
+                <div class="reveal">
+                    <h2 style="font-size:var(--h3-size);"><span class="tag">维度 5</span> 断言验证</h2>
+                    <p style="margin:0.5em 0;font-size:var(--body-size);color:var(--text-secondary);">LLM 逐条判定业务规则 PASS 或 FAIL。</p>
+                    <div class="neon-card" style="margin-top:0.4em;">
+                        <p style="font-size:var(--small-size);color:var(--text-secondary);">"refunds 表中应存在 ORD-2001 的记录"</p>
+                        <p style="font-size:var(--small-size);color:var(--text-secondary);margin-top:0.2em;">"回复中应提到退款到账时间"</p>
+                        <p style="font-size:var(--small-size);color:var(--accent-cyan);margin-top:0.4em;">得分 = 通过数 / 总数</p>
+                    </div>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);margin-top:0.5em;">vs llm_judge: 前者是<strong>逐条清单</strong>, 后者是<strong>整体印象分</strong>。</p>
+                </div>
+                <div class="reveal">
+                    <h2 style="font-size:var(--h3-size);"><span class="tag--magenta tag">维度 6</span> 安全性</h2>
+                    <p style="margin:0.5em 0;font-size:var(--body-size);color:var(--text-secondary);">减分项 &mdash; 检查 Agent 有没有做不该做的事。</p>
+                    <ul class="icon-list" style="margin-top:0.4em;">
+                        <li style="font-size:var(--small-size);"><span class="icon" style="color:var(--accent-magenta);">&cross;</span> 有害内容 (辱骂、歧视)</li>
+                        <li style="font-size:var(--small-size);"><span class="icon" style="color:var(--accent-magenta);">&cross;</span> 越权操作 (删除他人数据)</li>
+                        <li style="font-size:var(--small-size);"><span class="icon" style="color:var(--accent-magenta);">&cross;</span> 信息泄露 (暴露隐私)</li>
+                        <li style="font-size:var(--small-size);"><span class="icon" style="color:var(--accent-magenta);">&cross;</span> 违反业务规则</li>
+                    </ul>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);margin-top:0.5em;"><strong style="color:var(--text-primary);">关键词 + LLM 双重检测</strong></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 9: WHY PRODUCT NOT AVERAGE
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">08</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">为什么用乘积, 不用加权平均?</h2>
+            <div class="formula reveal">overall = state &times; action &times; info &times; ...</div>
+            <div class="vs-row reveal">
+                <div class="vs-box vs-box--bad">
+                    <div class="vs-label">加权平均</div>
+                    <p style="font-size:var(--body-size);color:var(--text-secondary);">state=0, action=1, info=1</p>
+                    <p style="font-size:var(--body-size);color:var(--accent-magenta);margin-top:0.3em;"><strong>= 0.6 分</strong></p>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);">什么都没干还拿 60 分?</p>
+                </div>
+                <div class="vs-box vs-box--good">
+                    <div class="vs-label">乘积</div>
+                    <p style="font-size:var(--body-size);color:var(--text-secondary);">state=0, action=1, info=1</p>
+                    <p style="font-size:var(--body-size);color:var(--accent-cyan);margin-top:0.3em;"><strong>= 0 分</strong></p>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);">准确反映失败</p>
+                </div>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--text-secondary);">每个维度都是<strong>必要条件</strong>, 不能互相补偿。借鉴 &tau;-bench (ICLR 2025) 的设计。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 10: PASS@K CONCEPT
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">09</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">稳定性指标: Pass@k 和 Pass^k</h2>
+            <p class="reveal">同一个任务跑 5 次, 3 次通过 2 次失败 &mdash; 这个 Agent 到底行不行?</p>
+            <div class="two-col reveal">
+                <div class="neon-card">
+                    <p style="font-size:var(--small-size);color:var(--accent-cyan);margin-bottom:0.3em;"><strong>Pass@k &mdash; 能力上限</strong></p>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);">k 次机会中至少 1 次通过的概率</p>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);margin-top:0.4em;">想象 5 张牌 &checkmark;&checkmark;&checkmark;&cross;&cross;, 闭眼抽 k 张, 至少抽到 1 张 &checkmark; 的概率</p>
+                </div>
+                <div class="neon-card">
+                    <p style="font-size:var(--small-size);color:var(--accent-magenta);margin-bottom:0.3em;"><strong>Pass^k &mdash; 稳定性下限</strong></p>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);">k 次全部通过的概率</p>
+                    <p style="font-size:var(--small-size);color:var(--text-secondary);margin-top:0.4em;">每次 60% 通过, 连续 3 次都通过 = 0.6 &times; 0.6 &times; 0.6 = 21.6%</p>
+                </div>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--text-secondary);"><strong style="color:var(--text-primary);">两者差距越大, Agent 越不稳定</strong> &mdash; 有能力但不可靠。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 11: PASS@K CALCULATION
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">10</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">计算示例: 5 次试验, 3 次通过</h2>
+            <div class="neon-card reveal" style="overflow-x:auto;">
+                <table class="compare-table">
+                    <thead>
+                        <tr><th>指标</th><th>计算</th><th>结果</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="color:var(--accent-cyan);">Pass@1</td><td>抽 1 张, &cross; 概率 = 2/5, 至少 1 &checkmark; = 1 - 2/5</td><td><strong style="color:var(--accent-cyan);">0.6</strong></td></tr>
+                        <tr><td style="color:var(--accent-cyan);">Pass@2</td><td>抽 2 张, 全 &cross; = 2/5 &times; 1/4 = 1/10, 至少 1 &checkmark; = 1 - 1/10</td><td><strong style="color:var(--accent-cyan);">0.9</strong></td></tr>
+                        <tr><td style="color:var(--accent-cyan);">Pass@3</td><td>抽 3 张, 只有 2 张 &cross;, 不可能全 &cross;</td><td><strong style="color:var(--accent-cyan);">1.0</strong></td></tr>
+                        <tr><td style="color:var(--accent-magenta);">Pass^1</td><td>0.6<sup>1</sup></td><td><strong style="color:var(--accent-magenta);">0.6</strong></td></tr>
+                        <tr><td style="color:var(--accent-magenta);">Pass^2</td><td>0.6 &times; 0.6</td><td><strong style="color:var(--accent-magenta);">0.36</strong></td></tr>
+                        <tr><td style="color:var(--accent-magenta);">Pass^3</td><td>0.6 &times; 0.6 &times; 0.6</td><td><strong style="color:var(--accent-magenta);">0.216</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--text-secondary);">Pass@2 = 0.9 vs Pass^2 = 0.36 &mdash; "给两次机会大概率能成一次", 但"两次都成"只有三分之一。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 12: EVALUATION MODE SELECTION
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">11</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">评估维度的选择逻辑</h2>
+            <div class="two-col reveal">
+                <div class="neon-card">
+                    <p style="font-size:var(--small-size);color:var(--accent-cyan);margin-bottom:0.5em;"><strong>白盒 Agent (有工具调用)</strong></p>
+                    <ul class="icon-list" style="gap:0.25rem;">
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> state_match <span class="tag" style="margin-left:0.3em;font-size:0.65rem;">必选</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> action_match <span class="tag" style="margin-left:0.3em;font-size:0.65rem;">必选</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> info_delivery <span class="tag--dim tag" style="margin-left:0.3em;font-size:0.65rem;">推荐</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> nl_assertion <span class="tag--dim tag" style="margin-left:0.3em;font-size:0.65rem;">可选</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> safety <span class="tag--dim tag" style="margin-left:0.3em;font-size:0.65rem;">可选</span></li>
+                    </ul>
+                </div>
+                <div class="neon-card">
+                    <p style="font-size:var(--small-size);color:var(--accent-magenta);margin-bottom:0.5em;"><strong>黑盒 Agent (只有文本回复)</strong></p>
+                    <ul class="icon-list" style="gap:0.25rem;">
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> llm_judge <span class="tag--magenta tag" style="margin-left:0.3em;font-size:0.65rem;">必选</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> info_delivery <span class="tag--dim tag" style="margin-left:0.3em;font-size:0.65rem;">推荐</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> nl_assertion <span class="tag--dim tag" style="margin-left:0.3em;font-size:0.65rem;">可选</span></li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&raquo;</span> safety <span class="tag--dim tag" style="margin-left:0.3em;font-size:0.65rem;">可选</span></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="callout reveal">能用确定性指标就不用 LLM 判 &mdash; 更稳定、更可重复。</div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 13: CORE VALUE
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">12</span>
+        <div class="slide-content" style="align-items:center; text-align:center; gap: var(--content-gap);">
+            <h2 class="reveal" style="font-size: clamp(1.5rem, 4vw, 3rem); background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">评估的核心价值</h2>
+            <p class="reveal" style="font-size: clamp(1rem, 2.5vw, 1.6rem); color: var(--text-primary); max-width: 700px; line-height: 1.6;">不是一刀切地判"合不合格"<br>而是<strong style="color:var(--accent-cyan);">发现问题</strong>和<strong style="color:var(--accent-cyan);">跟踪进步</strong></p>
+            <p class="reveal" style="font-size: var(--body-size); color: var(--text-secondary); max-width: 550px;">找到 Agent 的薄弱维度, 每次迭代看分数有没有提升。</p>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 14: BENCHMARK LANDSCAPE
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">13</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">更广阔的 Agent 评估版图</h2>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--text-secondary);">业界主流基准 (公开的标准化考试题), 供参考:</p>
+            <div class="bench-grid reveal">
+                <div class="bench-card">
+                    <div class="bench-name">SWE-bench</div>
+                    <div class="bench-focus">考写代码</div>
+                    <div class="bench-desc">给真实 GitHub bug, 看 Agent 能不能自动修复。最高分 74.4%。</div>
+                </div>
+                <div class="bench-card">
+                    <div class="bench-name">GAIA</div>
+                    <div class="bench-focus">考综合能力</div>
+                    <div class="bench-desc">466 道题, 多步推理 + 工具使用。最高分 90%, 逼近人类 92%。</div>
+                </div>
+                <div class="bench-card">
+                    <div class="bench-name">WebArena</div>
+                    <div class="bench-focus">考操作网页</div>
+                    <div class="bench-desc">812 个真实网页任务, 测 Agent 能不能像人一样操作浏览器。</div>
+                </div>
+                <div class="bench-card">
+                    <div class="bench-name">BFCL</div>
+                    <div class="bench-focus">考调工具</div>
+                    <div class="bench-desc">函数调用排行榜, 测模型能不能正确传参调用 API。</div>
+                </div>
+                <div class="bench-card">
+                    <div class="bench-name">&tau;&sup3;-bench</div>
+                    <div class="bench-focus">考对话办事</div>
+                    <div class="bench-desc">和本项目最接近。模拟客服场景, 本项目借鉴了其评分设计。</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 15: REFERENCES
+         ========================================== -->
+    <section class="slide">
+        <span class="slide-number">14</span>
+        <div class="slide-content" style="gap: var(--content-gap);">
+            <h2 class="reveal">参考资料</h2>
+            <div class="two-col reveal">
+                <div>
+                    <p style="font-size:var(--small-size);color:var(--accent-cyan);margin-bottom:0.4em;"><strong>核心论文</strong></p>
+                    <ul class="icon-list" style="gap:0.2rem;">
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> Chen et al. 2021 &mdash; Pass@k 指标</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> Zheng et al. NeurIPS 2023 &mdash; LLM-as-Judge</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> Yao et al. ICLR 2025 &mdash; &tau;-bench</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> Ye et al. 2024 &mdash; LLM 评委偏见</li>
+                    </ul>
+                </div>
+                <div>
+                    <p style="font-size:var(--small-size);color:var(--accent-magenta);margin-bottom:0.4em;"><strong>开源框架</strong></p>
+                    <ul class="icon-list" style="gap:0.2rem;">
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> &tau;-bench / &tau;&sup3;-bench &mdash; Sierra Research</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> AgentBench &mdash; 清华大学 THUDM</li>
+                        <li style="font-size:var(--small-size);"><span class="icon">&bull;</span> AgentBoard &mdash; 香港科大 NLP</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         SLIDE 16: END
+         ========================================== -->
+    <section class="slide end-slide">
+        <div class="slide-content">
+            <h2 class="reveal">Thanks</h2>
+            <p class="reveal" style="font-size:var(--body-size);color:var(--text-secondary);">Q & A</p>
+        </div>
+    </section>
+
+    <!-- ===========================================
+         SLIDE PRESENTATION CONTROLLER
+         =========================================== -->
+    <script>
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.currentSlide = 0;
+                this.isScrolling = false;
+                this.setupIntersectionObserver();
+                this.setupKeyboardNav();
+                this.setupTouchNav();
+                this.setupProgressBar();
+                this.setupNavDots();
+            }
+
+            setupIntersectionObserver() {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            const idx = Array.from(this.slides).indexOf(entry.target);
+                            if (idx !== -1) {
+                                this.currentSlide = idx;
+                                this.updateNavDots();
+                                this.updateProgressBar();
+                            }
+                        }
+                    });
+                }, { threshold: 0.5 });
+                this.slides.forEach(slide => observer.observe(slide));
+            }
+
+            setupKeyboardNav() {
+                document.addEventListener('keydown', (e) => {
+                    if (['ArrowDown', 'ArrowRight', 'Space', 'PageDown'].includes(e.code)) {
+                        e.preventDefault();
+                        this.goToSlide(this.currentSlide + 1);
+                    } else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.code)) {
+                        e.preventDefault();
+                        this.goToSlide(this.currentSlide - 1);
+                    } else if (e.code === 'Home') {
+                        e.preventDefault();
+                        this.goToSlide(0);
+                    } else if (e.code === 'End') {
+                        e.preventDefault();
+                        this.goToSlide(this.slides.length - 1);
+                    }
+                });
+            }
+
+            setupTouchNav() {
+                let startY = 0;
+                document.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; });
+                document.addEventListener('touchend', (e) => {
+                    const diff = startY - e.changedTouches[0].clientY;
+                    if (Math.abs(diff) > 50) {
+                        this.goToSlide(this.currentSlide + (diff > 0 ? 1 : -1));
+                    }
+                });
+            }
+
+            setupProgressBar() {
+                this.progressBar = document.getElementById('progressBar');
+                this.updateProgressBar();
+            }
+
+            updateProgressBar() {
+                if (!this.progressBar) return;
+                const pct = ((this.currentSlide + 1) / this.slides.length) * 100;
+                this.progressBar.style.width = pct + '%';
+            }
+
+            setupNavDots() {
+                const nav = document.getElementById('navDots');
+                if (!nav) return;
+                this.slides.forEach((_, i) => {
+                    const dot = document.createElement('button');
+                    dot.classList.add('nav-dot');
+                    if (i === 0) dot.classList.add('active');
+                    dot.addEventListener('click', () => this.goToSlide(i));
+                    nav.appendChild(dot);
+                });
+                this.dots = nav.querySelectorAll('.nav-dot');
+            }
+
+            updateNavDots() {
+                if (!this.dots) return;
+                this.dots.forEach((d, i) => d.classList.toggle('active', i === this.currentSlide));
+            }
+
+            goToSlide(idx) {
+                if (idx < 0 || idx >= this.slides.length) return;
+                this.currentSlide = idx;
+                this.slides[idx].scrollIntoView({ behavior: 'smooth' });
+                this.updateNavDots();
+                this.updateProgressBar();
+            }
+        }
+
+        new SlidePresentation();
+    </script>
+</body>
+</html>
