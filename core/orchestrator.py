@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import logging
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from core.types import (
     Role,
@@ -132,29 +133,54 @@ class Orchestrator:
                 termination = TerminationReason.SUCCESS
                 break
 
-        # ── Evaluation ──
+        # ── Evaluation (concurrent) ──
         scores: dict[str, float] = {}
         score_details: dict[str, str] = {}
-        for name, evaluator in self.evaluators.items():
+
+        def _run_evaluator(name: str, evaluator: Evaluator) -> tuple[str, float, str]:
+            """Run a single evaluator, return (name, score, detail)."""
             if self.on_progress:
                 try:
                     self.on_progress("eval_start", {"name": name})
                 except Exception:
                     pass
+            detail = ""
             try:
-                scores[name] = evaluator.evaluate(task, trajectory, self.env)
+                score = evaluator.evaluate(task, trajectory, self.env)
             except Exception as e:
-                logger.error("Evaluator '%s' failed: %s", name, e)
-                scores[name] = 0.0
-            # Collect reasoning from evaluators
-            reason = getattr(evaluator, "last_reason", "")
-            if reason:
-                model = getattr(evaluator, "model", "")
-                prefix = f"[评判模型: {model}]\n" if model else ""
-                score_details[name] = prefix + reason
+                logger.error("Evaluator '%s' crashed: %s", name, e, exc_info=True)
+                score = 0.0
+                detail = f"[EVALUATOR_ERROR] {type(e).__name__}: {e}"
+            if not detail:
+                reason = getattr(evaluator, "last_reason", "")
+                if reason:
+                    model = getattr(evaluator, "model", "")
+                    prefix = f"[评判模型: {model}]\n" if model else ""
+                    detail = prefix + reason
+            return name, score, detail
 
+        with ThreadPoolExecutor(max_workers=max(len(self.evaluators), 1)) as pool:
+            futures = {
+                pool.submit(_run_evaluator, name, ev): name
+                for name, ev in self.evaluators.items()
+            }
+            for future in as_completed(futures):
+                name, score, detail = future.result()
+                scores[name] = score
+                if detail:
+                    score_details[name] = detail
+
+        # Compute overall score: multiply all scores, but skip evaluators
+        # that crashed (marked with EVALUATOR_ERROR) to avoid a single broken
+        # evaluator zeroing out the entire result.
         overall = 1.0
-        for s in scores.values():
+        errored_evaluators = [
+            n for n, d in score_details.items()
+            if d.startswith("[EVALUATOR_ERROR]")
+        ]
+        for name, s in scores.items():
+            if name in errored_evaluators:
+                continue
             overall *= s
 
         # Compute progress rate: area under step-reward curve / max possible
