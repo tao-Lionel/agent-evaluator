@@ -7,6 +7,7 @@ from openai import OpenAI
 from core.types import Role, Message, Task
 from core.base import UserSimulator
 from core.registry import registry
+from core.retry import with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +56,23 @@ class LLMUserSimulator(UserSimulator):
         messages = self._build_messages(task, trajectory)
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+            response = with_retry(
+                lambda: self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                ),
+                max_retries=3,
+                base_delay=1.0,
             )
             reply = response.choices[0].message.content or ""
         except Exception as e:
-            logger.error("LLMUser API error: %s", e)
-            reply = "[TASK_DONE]"
+            logger.error("LLMUser API error: %s", e, exc_info=True)
+            return Message(
+                role=Role.USER,
+                content=f"[LLM_USER_ERROR] API 调用失败: {type(e).__name__}",
+            )
 
         logger.info("LLMUser reply: %s", reply[:100])
 

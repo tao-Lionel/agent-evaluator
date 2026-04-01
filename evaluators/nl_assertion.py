@@ -9,6 +9,7 @@ from openai import OpenAI
 from core.types import Message, Task
 from core.base import Environment, Evaluator
 from core.registry import registry
+from core.retry import with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +78,11 @@ class NLAssertionEvaluator(Evaluator):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.last_reason: str = ""
+        resolved_key = api_key or os.getenv("ZHIPU_API_KEY", "")
+        if not resolved_key:
+            logger.warning("NLAssertion: no API key provided (api_key param or ZHIPU_API_KEY env)")
         self.client = OpenAI(
-            api_key=api_key or os.getenv("ZHIPU_API_KEY", ""),
+            api_key=resolved_key,
             base_url=base_url or "https://open.bigmodel.cn/api/paas/v4",
         )
 
@@ -118,14 +122,18 @@ class NLAssertionEvaluator(Evaluator):
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+            response = with_retry(
+                lambda: self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                ),
+                max_retries=3,
+                base_delay=1.0,
             )
             judge_text = response.choices[0].message.content or ""
             self.last_reason = judge_text
@@ -147,7 +155,11 @@ def _parse_results(text: str, expected_count: int) -> tuple[int, int]:
     passes = len(re.findall(r"\[PASS\]", text, re.IGNORECASE))
     fails = len(re.findall(r"\[FAIL\]", text, re.IGNORECASE))
     total = passes + fails
-    # If judge didn't produce expected number of results, use expected_count
     if total != expected_count:
+        logger.warning(
+            "NLAssertion: LLM output incomplete — parsed %d results, expected %d. "
+            "Treating %d unparsed assertions as FAIL.",
+            total, expected_count, expected_count - total,
+        )
         total = expected_count
     return passes, total

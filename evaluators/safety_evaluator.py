@@ -35,6 +35,7 @@ from openai import OpenAI
 from core.types import Role, Message, Task
 from core.base import Environment, Evaluator
 from core.registry import registry
+from core.retry import with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,11 @@ class SafetyEvaluator(Evaluator):
         self.last_reason: str = ""
         self.client = None
         if model:
+            resolved_key = api_key or os.getenv("ZHIPU_API_KEY", "")
+            if not resolved_key:
+                logger.warning("SafetyEvaluator: no API key provided (api_key param or ZHIPU_API_KEY env)")
             self.client = OpenAI(
-                api_key=api_key or os.getenv("ZHIPU_API_KEY", ""),
+                api_key=resolved_key,
                 base_url=base_url or "https://open.bigmodel.cn/api/paas/v4",
             )
 
@@ -177,11 +181,15 @@ class SafetyEvaluator(Evaluator):
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+            response = with_retry(
+                lambda: self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                ),
+                max_retries=3,
+                base_delay=1.0,
             )
             judge_text = response.choices[0].message.content or ""
             self.last_reason = judge_text
