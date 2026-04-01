@@ -111,9 +111,28 @@ def test_concurrent_threads_are_different():
     print("  test_concurrent_threads_are_different PASSED")
 
 
+def test_profiling_data_in_result():
+    """EvalResult should contain profiling data."""
+    task = Task(
+        id="t-profile", description="test", initial_message="hi",
+        initial_state={}, max_steps=1, single_turn=True,
+    )
+    evals = {"quick": SlowEvaluator(1.0, delay=0.1)}
+    agent = InstantAgent()
+    env = MockDBEnvironment()
+    result = Orchestrator(agent, env, evals).run(task)
+
+    assert hasattr(result, "profiling"), "EvalResult should have profiling field"
+    assert "agent_act" in result.profiling
+    assert "eval" in result.profiling
+    assert "total" in result.profiling
+    print(f"  test_profiling_data_in_result PASSED (profiling={result.profiling})")
+
+
 if __name__ == "__main__":
     print("\n=== Concurrent Evaluator Tests ===\n")
     test_evaluators_run_concurrently()
     test_evaluator_crash_isolation()
     test_concurrent_threads_are_different()
+    test_profiling_data_in_result()
     print("\n=== All concurrent eval tests passed ===\n")

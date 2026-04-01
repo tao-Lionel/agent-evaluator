@@ -97,6 +97,7 @@ class EvalResult:
     step_durations: list[float] = field(default_factory=list)
     step_rewards: list[float] = field(default_factory=list)
     progress_rate: float = 0.0
+    profiling: dict[str, Any] = field(default_factory=dict)
 
     def summary(self) -> dict[str, Any]:
         result = {
@@ -115,6 +116,8 @@ class EvalResult:
         if self.step_rewards:
             result["step_rewards"] = [round(r, 3) for r in self.step_rewards]
             result["progress_rate"] = round(self.progress_rate, 3)
+        if self.profiling:
+            result["profiling"] = self.profiling
         return result
 
     def _serialize_trajectory(self) -> list[dict[str, Any]]:

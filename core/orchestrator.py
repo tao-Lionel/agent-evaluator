@@ -17,6 +17,7 @@ from core.types import (
 )
 from typing import TYPE_CHECKING
 from core.base import AgentAdapter, Environment, Evaluator
+from core.profiler import Profiler
 if TYPE_CHECKING:
     from core.base import UserSimulator as UserSimulatorType
 
@@ -42,6 +43,7 @@ class Orchestrator:
 
     def run(self, task: Task) -> EvalResult:
         start = time.time()
+        profiler = Profiler()
         self.agent.reset()
         if self.user:
             self.user.reset(task)
@@ -66,7 +68,8 @@ class Orchestrator:
 
             # ── Agent generates a response ──
             try:
-                agent_msg = self.agent.act(trajectory)
+                with profiler.phase("agent_act"):
+                    agent_msg = self.agent.act(trajectory)
             except Exception as e:
                 logger.error("Agent error at step %d: %s", step, e)
                 step_durations.append(time.time() - step_start)
@@ -99,7 +102,8 @@ class Orchestrator:
 
             for tc in agent_msg.tool_calls:
                 try:
-                    result = self.env.step(tc)
+                    with profiler.phase("env_step"):
+                        result = self.env.step(tc)
                     tool_results.append(ToolResult(
                         tool_call_id=tc.id,
                         name=tc.name,
@@ -134,41 +138,42 @@ class Orchestrator:
                 break
 
         # ── Evaluation (concurrent) ──
-        scores: dict[str, float] = {}
-        score_details: dict[str, str] = {}
+        with profiler.phase("eval"):
+            scores: dict[str, float] = {}
+            score_details: dict[str, str] = {}
 
-        def _run_evaluator(name: str, evaluator: Evaluator) -> tuple[str, float, str]:
-            """Run a single evaluator, return (name, score, detail)."""
-            if self.on_progress:
+            def _run_evaluator(name: str, evaluator: Evaluator) -> tuple[str, float, str]:
+                """Run a single evaluator, return (name, score, detail)."""
+                if self.on_progress:
+                    try:
+                        self.on_progress("eval_start", {"name": name})
+                    except Exception:
+                        pass
+                detail = ""
                 try:
-                    self.on_progress("eval_start", {"name": name})
-                except Exception:
-                    pass
-            detail = ""
-            try:
-                score = evaluator.evaluate(task, trajectory, self.env)
-            except Exception as e:
-                logger.error("Evaluator '%s' crashed: %s", name, e, exc_info=True)
-                score = 0.0
-                detail = f"[EVALUATOR_ERROR] {type(e).__name__}: {e}"
-            if not detail:
-                reason = getattr(evaluator, "last_reason", "")
-                if reason:
-                    model = getattr(evaluator, "model", "")
-                    prefix = f"[评判模型: {model}]\n" if model else ""
-                    detail = prefix + reason
-            return name, score, detail
+                    score = evaluator.evaluate(task, trajectory, self.env)
+                except Exception as e:
+                    logger.error("Evaluator '%s' crashed: %s", name, e, exc_info=True)
+                    score = 0.0
+                    detail = f"[EVALUATOR_ERROR] {type(e).__name__}: {e}"
+                if not detail:
+                    reason = getattr(evaluator, "last_reason", "")
+                    if reason:
+                        model = getattr(evaluator, "model", "")
+                        prefix = f"[评判模型: {model}]\n" if model else ""
+                        detail = prefix + reason
+                return name, score, detail
 
-        with ThreadPoolExecutor(max_workers=max(len(self.evaluators), 1)) as pool:
-            futures = {
-                pool.submit(_run_evaluator, name, ev): name
-                for name, ev in self.evaluators.items()
-            }
-            for future in as_completed(futures):
-                name, score, detail = future.result()
-                scores[name] = score
-                if detail:
-                    score_details[name] = detail
+            with ThreadPoolExecutor(max_workers=max(len(self.evaluators), 1)) as pool:
+                futures = {
+                    pool.submit(_run_evaluator, name, ev): name
+                    for name, ev in self.evaluators.items()
+                }
+                for future in as_completed(futures):
+                    name, score, detail = future.result()
+                    scores[name] = score
+                    if detail:
+                        score_details[name] = detail
 
         # Compute overall score: multiply all scores, but skip evaluators
         # that crashed (marked with EVALUATOR_ERROR) to avoid a single broken
@@ -206,6 +211,7 @@ class Orchestrator:
             step_durations=step_durations,
             step_rewards=step_rewards,
             progress_rate=progress_rate,
+            profiling=profiler.summary(),
         )
 
     def _build_system_prompt(self, init_obs: str, task: Task) -> str:

@@ -83,6 +83,14 @@ def print_result(result: EvalResult, task: Task):
         bar = "+" * int(score * 10) + "-" * (10 - int(score * 10))
         print(f"       {name:15s}: {score:.2f} [{bar}]")
     print(f"       Overall     : {result.overall_score:.2f}")
+
+    # Profiling
+    if result.profiling:
+        print(f"       Profiling:")
+        for key, val in result.profiling.items():
+            if isinstance(val, (int, float)) and not key.endswith("_count"):
+                print(f"         {key:15s}: {val:.2f}s")
+
     print()
     print("  " + "- " * 28)
     print()
@@ -165,6 +173,16 @@ def main():
     if env.get_tool_schemas():
         adapter_params.setdefault("tools", env.get_tool_schemas())
     adapter = AdapterClass(**adapter_params)
+
+    # Ensure adapter resources are cleaned up even if an exception occurs
+    import atexit
+    def _cleanup_adapter():
+        if hasattr(adapter, "close"):
+            try:
+                adapter.close()
+            except Exception as e:
+                logger.warning("Failed to close adapter: %s", e)
+    atexit.register(_cleanup_adapter)
 
     # Build evaluators
     # Supports two formats:
@@ -385,9 +403,9 @@ def main():
                 f.write(cmp_html)
             print(f"  Compare saved to {cmp_file}  (vs {prev.name})")
 
-    # Close adapter resources (e.g. httpx.Client)
-    if hasattr(adapter, "close"):
-        adapter.close()
+    # Close adapter resources (explicit call; atexit handler is the safety net)
+    _cleanup_adapter()
+    atexit.unregister(_cleanup_adapter)
 
     print()
 
