@@ -57,14 +57,20 @@ def analyze_failures(
         task = task_map.get(result.task_id)
         desc = task.description if task else result.task_id
         scores = rdata.get("scores", {})
+        trajectory = getattr(result, "trajectory", None) or []
 
         # Extract key messages from trajectory
         messages = []
-        for msg in result.trajectory:
-            if msg.role == Role.USER and msg.content:
-                messages.append(f"用户: {msg.content[:200]}")
-            elif msg.role == Role.AGENT and msg.content:
-                messages.append(f"Bot: {msg.content[:200]}")
+        for msg in trajectory:
+            content = getattr(msg, "content", None)
+            if not content:
+                continue
+            role = getattr(msg, "role", None)
+            content_text = str(content)[:200]
+            if role == Role.USER:
+                messages.append(f"用户: {content_text}")
+            elif role == Role.AGENT:
+                messages.append(f"Bot: {content_text}")
         conversation = "\n".join(messages[-6:])  # Last 6 messages
 
         context_parts.append(

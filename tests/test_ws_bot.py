@@ -1,19 +1,20 @@
 from __future__ import annotations
+
 import asyncio
 import json
 import sys
 import threading
-import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
+import pytest
 import websockets
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.types import Role, Message
 from adapters.ws_bot import WsBotAdapter
 
-# ── Mock WebSocket Server ──
+# Mock WebSocket Server
 
 MOCK_WS_PORT = 18950
 
@@ -69,20 +70,37 @@ async def _mock_ws_handler(ws):
             await ws.send(json.dumps({"type": "done"}))
 
 
+def _run_event_loop(loop: asyncio.AbstractEventLoop) -> None:
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+
 def _start_ws_server(port):
     loop = asyncio.new_event_loop()
-
-    async def run():
-        async with websockets.serve(_mock_ws_handler, "127.0.0.1", port):
-            await asyncio.Future()  # run forever
-
-    thread = threading.Thread(target=lambda: loop.run_until_complete(run()), daemon=True)
+    thread = threading.Thread(target=_run_event_loop, args=(loop,), daemon=True)
     thread.start()
-    time.sleep(0.5)
-    return loop
+
+    async def start_server():
+        return await websockets.serve(_mock_ws_handler, "127.0.0.1", port)
+
+    server = asyncio.run_coroutine_threadsafe(start_server(), loop).result(timeout=5)
+    return loop, server, thread
 
 
-# ── Tests ──
+@pytest.fixture(scope="module", autouse=True)
+def ws_server():
+    loop, server, thread = _start_ws_server(MOCK_WS_PORT)
+    try:
+        yield
+    finally:
+        server.close()
+        asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result(timeout=5)
+        loop.call_soon_threadsafe(loop.stop)
+        thread.join(timeout=5)
+        loop.close()
+
+
+# Tests
 
 def test_ws_bot_basic():
     """Basic streaming reply."""
@@ -182,20 +200,27 @@ def test_ws_bot_timeout():
 
     messages = [Message(role=Role.USER, content="Hi")]
     result = adapter.act(messages)
-    # May get partial or empty — should not raise
+    # May get partial or empty; should not raise
     assert result.role == Role.AGENT
     print("  test_ws_bot_timeout: PASSED")
 
 
 if __name__ == "__main__":
-    _start_ws_server(MOCK_WS_PORT)
+    _loop, _server, _thread = _start_ws_server(MOCK_WS_PORT)
 
-    test_ws_bot_basic()
-    test_ws_bot_tool_calls()
-    test_ws_bot_error()
-    test_ws_bot_empty_reply()
-    test_ws_bot_reset_new_session()
-    test_ws_bot_progress_callback()
-    test_ws_bot_timeout()
+    try:
+        test_ws_bot_basic()
+        test_ws_bot_tool_calls()
+        test_ws_bot_error()
+        test_ws_bot_empty_reply()
+        test_ws_bot_reset_new_session()
+        test_ws_bot_progress_callback()
+        test_ws_bot_timeout()
 
-    print("\nAll ws_bot tests passed!")
+        print("\nAll ws_bot tests passed!")
+    finally:
+        _server.close()
+        asyncio.run_coroutine_threadsafe(_server.wait_closed(), _loop).result(timeout=5)
+        _loop.call_soon_threadsafe(_loop.stop)
+        _thread.join(timeout=5)
+        _loop.close()
