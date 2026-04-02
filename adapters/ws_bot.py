@@ -50,11 +50,14 @@ class WsBotAdapter(AgentAdapter):
 
     def act(self, messages: list[Message]) -> Message:
         user_text = self._extract_last_user_message(messages)
-        reply = asyncio.get_event_loop().run_until_complete(
-            self._ws_chat(user_text)
-        ) if self._has_running_loop() else asyncio.run(
-            self._ws_chat(user_text)
-        )
+        if self._has_running_loop():
+            # Already inside an async context — schedule on a new thread to
+            # avoid "cannot call run_until_complete() on a running loop".
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                reply = pool.submit(asyncio.run, self._ws_chat(user_text)).result()
+        else:
+            reply = asyncio.run(self._ws_chat(user_text))
         logger.debug("WsBot reply: %s", reply[:200] if reply else "")
         return Message(role=Role.AGENT, content=reply)
 

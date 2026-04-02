@@ -71,7 +71,7 @@ class HttpBotAdapter(AgentAdapter):
         self.message_field = message_field
         self.reply_field = reply_field
         self.session_field = session_field
-        self.headers = headers or {"Content-Type": "application/json"}
+        self.headers = {"Content-Type": "application/json", **(headers or {})}
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay

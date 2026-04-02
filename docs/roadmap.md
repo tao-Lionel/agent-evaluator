@@ -208,4 +208,5 @@
 - [benchmark-analysis.md](./research/benchmark-analysis.md) — 三个项目的完整源码级分析
 - [design-decisions.md](./research/design-decisions.md) — 每个设计决策的来源和理由
 - [extensibility-analysis.md](./research/extensibility-analysis.md) — 可扩展性分析和示例
+- [promptfoo-analysis.md](./research/promptfoo-analysis.md) — promptfoo 框架分析，可借鉴的技术方案（缓存、对比评估、成本追踪、轨迹断言等）
 - [Agent 评估完全指南](https://github.com/adongwanai/AgentGuide/blob/main/docs/02-tech-stack/agent-evaluation-complete-guide.md) — 基于 Anthropic 研究的评估方法论（Step 3/5 改进项的主要参考来源）

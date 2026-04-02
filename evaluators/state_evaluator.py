@@ -26,19 +26,22 @@ class StateEvaluator(Evaluator):
             return 1.0
 
         # Phase 1: exact hash match via replayed actions
-        gold_env = MockDBEnvironment()
-        gold_env.reset(task)
-        for action in task.expected_actions:
-            tc = ToolCall(
-                name=action["name"],
-                arguments=action.get("arguments", {}),
-            )
-            gold_env.step(tc)
-
         predicted_hash = env.get_state_hash()
-        gold_hash = gold_env.get_state_hash()
+        gold_hash = None
+        try:
+            gold_env = MockDBEnvironment()
+            gold_env.reset(task)
+            for action in task.expected_actions:
+                tc = ToolCall(
+                    name=action["name"],
+                    arguments=action.get("arguments", {}),
+                )
+                gold_env.step(tc)
+            gold_hash = gold_env.get_state_hash()
+        except Exception as e:
+            logger.warning("StateEvaluator: gold replay failed: %s", e)
 
-        if predicted_hash == gold_hash:
+        if gold_hash and predicted_hash == gold_hash:
             logger.debug("StateEvaluator: exact hash match")
             return 1.0
 

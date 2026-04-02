@@ -61,6 +61,10 @@ class OpenAIFCAdapter(AgentAdapter):
                 try:
                     args = json.loads(tc.function.arguments)
                 except json.JSONDecodeError:
+                    logger.warning(
+                        "OpenAIFC: failed to parse tool arguments for %s: %s",
+                        tc.function.name, tc.function.arguments[:200],
+                    )
                     args = {}
                 tool_calls.append(ToolCall(
                     name=tc.function.name,
