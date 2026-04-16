@@ -47,6 +47,22 @@ class TestFeishuWebhook(unittest.TestCase):
         })
         self.assertEqual(resp.status_code, 200)
 
+    @patch("eval_bot.feishu.send_reply")
+    def test_handle_quick_eval_sends_readable_start_message(self, mock_send_reply):
+        from eval_bot import feishu
+
+        feishu._handle_intent(
+            "quick_eval",
+            {"bot_url": "http://example.com/chat"},
+            "msg-quick-eval",
+            "chat-001",
+        )
+
+        mock_send_reply.assert_called_once()
+        reply_text = mock_send_reply.call_args.args[1]
+        self.assertIn("评测已开始", reply_text)
+        self.assertIn("http://example.com/chat", reply_text)
+
 
 if __name__ == "__main__":
     unittest.main()

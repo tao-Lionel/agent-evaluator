@@ -233,6 +233,44 @@ def test_state_subset_partial():
     print("  PASSED")
 
 
+def test_state_match_without_expected_actions_uses_expected_state():
+    """When expected_actions is empty, evaluator should still use expected_state."""
+    task = Task(
+        id="state-only",
+        description="State-only evaluation",
+        initial_message="Do not mutate state",
+        initial_state={
+            "orders": [
+                {"id": "ORD-9001", "status": "pending", "amount": 299}
+            ],
+        },
+        max_steps=10,
+        expected_actions=[],
+        expected_state={
+            "orders": [
+                {"id": "ORD-9001", "status": "cancelled", "amount": 299}
+            ],
+        },
+    )
+
+    script = [
+        Message(role=Role.AGENT, content="Done."),
+        Message(role=Role.AGENT, tool_calls=[
+            ToolCall(name="done", arguments={}, id="call_1"),
+        ]),
+    ]
+
+    agent = ScriptedAgent(script)
+    env = MockDBEnvironment()
+    evaluator = StateEvaluator()
+
+    result = Orchestrator(agent, env, {"state_match": evaluator}).run(task)
+    score = result.scores["state_match"]
+
+    assert abs(score - 2 / 3) < 0.01, f"Should be ~0.67, got {score}"
+    print("  PASSED")
+
+
 def test_max_steps():
     """Agent that never finishes should hit MAX_STEPS."""
     task = make_task()

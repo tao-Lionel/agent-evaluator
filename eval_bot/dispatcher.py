@@ -11,13 +11,12 @@ logger = logging.getLogger(__name__)
 
 DISPATCHER_SYSTEM_PROMPT = """\
 你是 Agent Evaluator 的智能助手，帮助用户通过飞书进行 Bot 评测。
-
 你可以：
 1. 对 HTTP Bot 进行快速评测
 2. 查询历史评测结果
 3. 生成测试场景
 
-请根据用户消息选择合适的工具。如果用户只是闲聊，直接回复即可。"""
+请根据用户消息选择合适的工具。如果用户只是在闲聊，直接回复即可。"""
 
 TOOLS = [
     {
@@ -34,12 +33,12 @@ TOOLS = [
                     },
                     "domain": {
                         "type": "string",
-                        "description": "Bot 的业务领域，如'客服'、'电商'",
+                        "description": "Bot 的业务领域，如“客服”“电商”",
                     },
                     "eval_modes": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "评测维度列表，可选: info_delivery, llm_judge",
+                        "description": "评测维度列表，可选 info_delivery、llm_judge",
                     },
                 },
                 "required": ["bot_url"],
@@ -73,7 +72,7 @@ TOOLS = [
                 "properties": {
                     "domain": {
                         "type": "string",
-                        "description": "业务领域，如'退款处理'、'投诉处理'",
+                        "description": "业务领域，如“退款处理”“投诉处理”",
                     },
                     "count": {
                         "type": "integer",
@@ -128,6 +127,5 @@ class Dispatcher:
             logger.info("Dispatched to %s with args: %s", name, args)
             return name, args
 
-        # No tool call = chitchat
         reply = msg.content or "你好，请问有什么评测需求？"
         return "chitchat", {"reply": reply}

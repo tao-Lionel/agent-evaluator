@@ -153,7 +153,8 @@ class HttpBotAdapter(AgentAdapter):
 
     def _send_with_retry(self, payload: dict) -> str:
         last_error = None
-        for attempt in range(1, self.max_retries + 1):
+        total_attempts = 1 + self.max_retries
+        for attempt in range(total_attempts):
             try:
                 response = self.client.post(
                     self.bot_url,
@@ -171,7 +172,7 @@ class HttpBotAdapter(AgentAdapter):
                 last_error = e
                 logger.warning(
                     "HttpBot request failed (attempt %d/%d): %s",
-                    attempt, self.max_retries, e,
+                    attempt + 1, total_attempts, e,
                 )
                 if attempt < self.max_retries:
                     time.sleep(self.retry_delay)

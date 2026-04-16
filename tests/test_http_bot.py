@@ -6,6 +6,8 @@ from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 
+import httpx
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.types import Role, Message
@@ -358,6 +360,32 @@ def test_backward_compatibility():
     assert payload["model"] == "gpt-4"
     assert "request_template" not in payload
     print("  test_backward_compatibility: PASSED")
+
+
+def test_http_bot_retry_count_matches_max_retries():
+    """max_retries means extra retries after the initial attempt."""
+    adapter = HttpBotAdapter(
+        bot_url="http://localhost:9999",
+        max_retries=2,
+        retry_delay=0.01,
+    )
+    request = httpx.Request("POST", adapter.bot_url)
+    call_count = 0
+
+    class FakeClient:
+        def post(self, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise httpx.ConnectError("connection refused", request=request)
+            return httpx.Response(200, request=request, json={"reply": "ok"})
+
+    adapter.client = FakeClient()
+    reply = adapter._send_with_retry({"message": "hi"})
+
+    assert reply == "ok"
+    assert call_count == 3
+    print("  test_http_bot_retry_count_matches_max_retries: PASSED")
 
 
 if __name__ == "__main__":

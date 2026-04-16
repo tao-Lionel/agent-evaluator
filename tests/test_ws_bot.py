@@ -205,6 +205,21 @@ def test_ws_bot_timeout():
     print("  test_ws_bot_timeout: PASSED")
 
 
+def test_ws_bot_inside_running_loop():
+    """Calling act() from an existing event loop should still succeed."""
+    adapter = WsBotAdapter(ws_url=f"ws://127.0.0.1:{MOCK_WS_PORT}")
+    adapter.reset()
+
+    async def run_inside_loop():
+        messages = [Message(role=Role.USER, content="Hi")]
+        return adapter.act(messages)
+
+    result = asyncio.run(run_inside_loop())
+    assert result.role == Role.AGENT
+    assert result.content == "Hello, world!"
+    print("  test_ws_bot_inside_running_loop: PASSED")
+
+
 if __name__ == "__main__":
     _loop, _server, _thread = _start_ws_server(MOCK_WS_PORT)
 
@@ -216,6 +231,7 @@ if __name__ == "__main__":
         test_ws_bot_reset_new_session()
         test_ws_bot_progress_callback()
         test_ws_bot_timeout()
+        test_ws_bot_inside_running_loop()
 
         print("\nAll ws_bot tests passed!")
     finally:

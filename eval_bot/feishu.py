@@ -10,35 +10,42 @@ import logging
 import os
 import threading
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Request
 from dotenv import load_dotenv
+from fastapi import FastAPI, Request
 
+from eval_bot.commands.gen_scenarios import gen_scenarios
+from eval_bot.commands.query_results import query_results
+from eval_bot.commands.quick_eval import run_quick_eval
 from eval_bot.dispatcher import Dispatcher
 from eval_bot.runner import TaskRunner
-from eval_bot.commands.quick_eval import run_quick_eval
-from eval_bot.commands.query_results import query_results
-from eval_bot.commands.gen_scenarios import gen_scenarios
 
 load_dotenv()
 
 logger = logging.getLogger("eval_bot")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-app = FastAPI()
 
-# ── Globals ──
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    try:
+        yield
+    finally:
+        runner.shutdown()
+
+
+app = FastAPI(lifespan=lifespan)
+
 dispatcher = Dispatcher()
 runner = TaskRunner(max_workers=2)
 
-# ── Feishu config ──
 APP_ID = os.getenv("FEISHU_APP_ID", "")
 APP_SECRET = os.getenv("FEISHU_APP_SECRET", "")
 VERIFY_TOKEN = os.getenv("FEISHU_VERIFY_TOKEN", "")
 
-# ── Token cache ──
 _tenant_access_token: str = ""
 _token_expires_at: float = 0
 _token_lock = threading.Lock()
@@ -92,7 +99,6 @@ def send_message_to_chat(chat_id: str, text: str) -> None:
         logger.error("Failed to send message: %s", data)
 
 
-# ── Dedup ──
 _seen_event_ids: dict[str, float] = {}
 _dedup_lock = threading.Lock()
 
@@ -102,8 +108,8 @@ def _is_duplicate(event_id: str) -> bool:
     with _dedup_lock:
         if len(_seen_event_ids) > 500:
             cutoff = now - 300
-            for k in [k for k, v in _seen_event_ids.items() if v < cutoff]:
-                del _seen_event_ids[k]
+            for key in [k for k, v in _seen_event_ids.items() if v < cutoff]:
+                del _seen_event_ids[key]
         if event_id in _seen_event_ids:
             return True
         _seen_event_ids[event_id] = now
@@ -128,7 +134,6 @@ def _extract_text_and_ids(body: dict) -> tuple[str | None, str | None, str | Non
 
 def _handle_intent(intent: str, args: dict[str, Any], message_id: str, chat_id: str):
     """Route intent to the correct command."""
-
     if intent == "chitchat":
         send_reply(message_id, args["reply"])
         return
@@ -173,7 +178,6 @@ def _handle_intent(intent: str, args: dict[str, Any], message_id: str, chat_id: 
 async def feishu_event(request: Request):
     body = await request.json()
 
-    # URL verification
     if "challenge" in body:
         return {"challenge": body["challenge"]}
 
@@ -204,11 +208,6 @@ async def feishu_event(request: Request):
         send_reply(message_id, "处理出错，请稍后重试。如持续出现请联系管理员。")
 
     return {"code": 0}
-
-
-@app.on_event("shutdown")
-def on_shutdown():
-    runner.shutdown()
 
 
 @app.get("/health")
